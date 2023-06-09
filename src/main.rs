@@ -49,6 +49,13 @@ struct IRCompilerFn<'lib> {
     set_vertex_viewport_index_id: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
 }
 
+#[repr(u32)]
+#[derive(Debug)]
+enum IRObjectType {
+    IRObjectTypeDXILBytecode,
+    IRObjectTypeMetalIRObject,
+}
+
 #[derive(Debug, Clone)]
 struct IRObjectFn<'lib> {
     create_from_dxil: libloading::Symbol<
@@ -56,10 +63,10 @@ struct IRObjectFn<'lib> {
         unsafe extern "C" fn(*const u8, usize, IRBytecodeOwnership) -> *mut IRObjectOpaque,
     >,
     destroy: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque) -> ()>,
-    get_metal_ir_shader_stage: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    get_metal_ir_shader_stage: libloading::Symbol<'lib, unsafe extern "C" fn()>,
     get_metal_lib_binary: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     get_reflection: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
-    get_type: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    get_type: libloading::Symbol<'lib, unsafe extern "C" fn() -> IRObjectType>,
     serialize: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
 }
 
@@ -78,6 +85,12 @@ impl<'lib> Drop for IRObject<'lib> {
     fn drop(&mut self) {
         unsafe { (self.funcs.destroy)(self.me) }
     }
+}
+
+fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 impl<'lib> IRObject<'lib> {
@@ -104,6 +117,10 @@ impl<'lib> IRObject<'lib> {
 
             Ok(Self { funcs, me })
         }
+    }
+
+    fn get_type(&self) -> IRObjectType {
+        unsafe { (self.funcs.get_type)() }
     }
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -609,14 +626,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let lib = libloading::Library::new(
             "C:/Program Files/Metal Shader Converter/lib/metalirconverter.dll",
         )?;
-        //let obj = IRObject::create_from_dxil(&lib, include_bytes!("C:/Users/Jasper/traverse/breda/apps/cs-memcpy/assets/shaders/memcpy.cs.dxil"))?;
 
         let root_sig = IRRootSignature::create_from_descriptor(&lib)?;
 
-        let obj = IRObject::create_from_dxil(&lib, include_bytes!("C:/Users/Jasper/traverse/breda/crates/breda-egui/assets/shaders/egui_update.cs.dxil"))?;
+        let egui_update = include_bytes!(
+            "C:/Users/Jasper/traverse/breda/crates/breda-egui/assets/shaders/egui_update.cs.dxil"
+        );
+        // let memcpy = include_bytes!("C:/Users/Jasper/traverse/breda/apps/cs-memcpy/assets/shaders/memcpy.cs.dxil");
+
+        let obj = IRObject::create_from_dxil(&lib, egui_update)?;
         let mut c = IRCompiler::new(&lib)?;
         c.set_global_root_signature(&root_sig);
-        c.alloc_compile_and_link(&[b"main\0"], &obj);
+        let mtllib = c.alloc_compile_and_link(&[b"main\0"], &obj)?;
+        dbg!(mtllib.get_type());
     }
     Ok(())
 }
