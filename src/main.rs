@@ -15,7 +15,7 @@ struct IRCompilerFn<'lib> {
             entry_points: usize,
             *const IRObjectOpaque,
             *mut *mut IRErrorOpaque,
-        ) -> u32,
+        ) -> *mut IRObjectOpaque,
     >,
     create: libloading::Symbol<'lib, unsafe extern "C" fn() -> *mut IRCompilerOpaque>,
     destroy: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque) -> ()>,
@@ -23,11 +23,15 @@ struct IRCompilerFn<'lib> {
         libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque, bool) -> u32>,
     set_compatibility_flags:
         libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque, u32) -> ()>,
+    set_global_root_signature: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(*mut IRCompilerOpaque, *const IRRootSignatureOpaque),
+    >,
+
     // todo
     set_depth_feedback_configuration: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_dual_source_blending_configuration: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_entry_point_name: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
-    set_global_root_signature: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_has_geometry_shader: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_hitgroup_arguments: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_input_topology: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
@@ -45,7 +49,7 @@ struct IRCompilerFn<'lib> {
     set_vertex_viewport_index_id: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct IRObjectFn<'lib> {
     create_from_dxil: libloading::Symbol<
         'lib,
@@ -347,7 +351,13 @@ struct IRVersionedRootSignatureDescriptor {
 
 #[derive(Debug)]
 struct IRRootSignatureFn<'lib> {
-    create_from_descriptor: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    create_from_descriptor: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(
+            *const IRVersionedRootSignatureDescriptor,
+            *mut *mut IRErrorOpaque,
+        ) -> *mut IRRootSignatureOpaque,
+    >,
     destroy: libloading::Symbol<'lib, unsafe extern "C" fn(*const IRRootSignatureOpaque) -> ()>,
     get_resource_count: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     get_resource_locations: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
@@ -364,10 +374,35 @@ impl<'lib> Drop for IRRootSignature<'lib> {
     }
 }
 
+fn create_static_sampler(
+    min_mag_mip_mode: IRFilter,
+    address_mode: IRTextureAddressMode,
+    index: u32,
+    anisotropy: Option<u32>,
+) -> IRStaticSamplerDescriptor {
+    let max_anisotropy = anisotropy.unwrap_or(1);
+
+    IRStaticSamplerDescriptor {
+        filter: min_mag_mip_mode,
+        address_u: address_mode,
+        address_v: address_mode,
+        address_w: address_mode,
+        mip_lod_bias: 0.0,
+        max_anisotropy: max_anisotropy,
+        comparison_func: IRComparisonFunction::IRComparisonFunctionNever,
+        min_lod: 0.0,
+        max_lod: 100000.0,
+        shader_register: index,
+        register_space: 0,
+        shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
+        border_color: IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
+    }
+}
+
 impl<'lib> IRRootSignature<'lib> {
-    fn create_from_dxil(
+    fn create_from_descriptor(
         lib: &'lib libloading::Library,
-        bytecode: &[u8],
+        // bytecode: &[u8],
     ) -> Result<IRRootSignature<'lib>, Box<dyn std::error::Error>> {
         unsafe {
             let funcs = IRRootSignatureFn {
@@ -377,7 +412,98 @@ impl<'lib> IRRootSignature<'lib> {
                 get_resource_locations: lib.get(b"IRRootSignatureGetResourceLocations")?,
             };
 
-            let me = std::ptr::null_mut();
+            let parameters = {
+                let push_constants = IRRootParameter1 {
+                    parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
+                    shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
+                    u: IRRootParameter1_u {
+                        constants: IRRootConstants {
+                            register_space: 0 as u32,
+                            shader_register: 0,
+                            num32_bit_values: 4, // debug has 6
+                        },
+                    },
+                };
+
+                let indirect_identifier = IRRootParameter1 {
+                    parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
+                    shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
+                    u: IRRootParameter1_u {
+                        constants: IRRootConstants {
+                            register_space: 1 as u32,
+                            shader_register: 0,
+                            num32_bit_values: 1,
+                        },
+                    },
+                };
+
+                vec![push_constants, indirect_identifier]
+            };
+
+            let static_samplers = [
+                create_static_sampler(
+                    IRFilter::IRFilterMinMagMipPoint,
+                    IRTextureAddressMode::IRTextureAddressModeWrap,
+                    0,
+                    None,
+                ),
+                create_static_sampler(
+                    IRFilter::IRFilterMinMagMipPoint,
+                    IRTextureAddressMode::IRTextureAddressModeClamp,
+                    1,
+                    None,
+                ),
+                create_static_sampler(
+                    IRFilter::IRFilterMinMagMipLinear,
+                    IRTextureAddressMode::IRTextureAddressModeWrap,
+                    2,
+                    None,
+                ),
+                create_static_sampler(
+                    IRFilter::IRFilterMinMagMipLinear,
+                    IRTextureAddressMode::IRTextureAddressModeClamp,
+                    3,
+                    None,
+                ),
+                create_static_sampler(
+                    IRFilter::IRFilterMinMagMipLinear,
+                    IRTextureAddressMode::IRTextureAddressModeBorder,
+                    4,
+                    None,
+                ),
+                create_static_sampler(
+                    IRFilter::IRFilterAnisotropic,
+                    IRTextureAddressMode::IRTextureAddressModeWrap,
+                    5,
+                    Some(2),
+                ),
+                create_static_sampler(
+                    IRFilter::IRFilterAnisotropic,
+                    IRTextureAddressMode::IRTextureAddressModeWrap,
+                    6,
+                    Some(4),
+                ),
+            ];
+
+            let desc_1_1 = IRRootSignatureDescriptor1 {
+                flags: IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
+                num_parameters: parameters.len() as u32,
+                p_parameters: parameters.as_ptr(),
+                num_static_samplers: static_samplers.len() as u32,
+                p_static_samplers: static_samplers.as_ptr(),
+            };
+
+            let desc = IRVersionedRootSignatureDescriptor {
+                version: IRRootSignatureVersion::IRRootSignatureVersion_1_1,
+                u: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
+            };
+
+            let mut error: *mut IRErrorOpaque =
+                unsafe { std::ptr::null_mut::<IRErrorOpaque>().add(0) };
+
+            let me = (funcs.create_from_descriptor)(&desc, &mut error);
+
+            dbg!(error);
 
             Ok(Self { funcs, me })
         }
@@ -436,7 +562,17 @@ impl<'lib> IRCompiler<'lib> {
         }
     }
 
-    fn alloc_compile_and_link(&mut self, entry_points: &[&[u8]], input: &IRObject) {
+    fn set_global_root_signature(&mut self, root_signature: &IRRootSignature) {
+        unsafe {
+            (self.funcs.set_global_root_signature)(self.me, root_signature.me);
+        }
+    }
+
+    fn alloc_compile_and_link(
+        &mut self,
+        entry_points: &[&[u8]],
+        input: &'lib IRObject,
+    ) -> Result<IRObject<'lib>, Box<dyn std::error::Error>> {
         let entry_points = entry_points
             .iter()
             .map(|e| e.as_ptr())
@@ -456,6 +592,15 @@ impl<'lib> IRCompiler<'lib> {
         dbg!(v);
 
         dbg!(error);
+
+        if error.is_null() {
+            Ok(IRObject {
+                funcs: input.funcs.clone(),
+                me: v,
+            })
+        } else {
+            panic!("{:?}", error);
+        }
     }
 }
 
@@ -465,8 +610,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "C:/Program Files/Metal Shader Converter/lib/metalirconverter.dll",
         )?;
         //let obj = IRObject::create_from_dxil(&lib, include_bytes!("C:/Users/Jasper/traverse/breda/apps/cs-memcpy/assets/shaders/memcpy.cs.dxil"))?;
+
+        let root_sig = IRRootSignature::create_from_descriptor(&lib)?;
+
         let obj = IRObject::create_from_dxil(&lib, include_bytes!("C:/Users/Jasper/traverse/breda/crates/breda-egui/assets/shaders/egui_update.cs.dxil"))?;
         let mut c = IRCompiler::new(&lib)?;
+        c.set_global_root_signature(&root_sig);
         c.alloc_compile_and_link(&[b"main\0"], &obj);
     }
     Ok(())
