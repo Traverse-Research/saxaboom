@@ -9,7 +9,9 @@
 
 [![Banner](banner.png)](https://traverseresearch.nl)
 
-TODO: Write a description
+# 🤘 Saxaboom
+
+Small helper library around the `metal_irconverter` to create metal shader libraries from DXIL files.
 
 ## Usage
 
@@ -17,7 +19,7 @@ Add this to your Cargo.toml:
 
 ```toml
 [dependencies]
-rust-template = "0.0.0"
+saxaboom = "0.1.0"
 ```
 
 ```rust
