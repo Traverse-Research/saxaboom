@@ -56,6 +56,35 @@ enum IRObjectType {
     IRObjectTypeMetalIRObject,
 }
 
+#[repr(u32)]
+#[derive(Debug)]
+enum IRShaderStage
+{
+    IRShaderStageInvalid,
+    IRShaderStageVertex,
+    IRShaderStageFragment,
+    IRShaderStageHull,
+    IRShaderStageDomain,
+    IRShaderStageMesh,
+    IRShaderStageAmplification,
+    IRShaderStageGeometry,
+    IRShaderStageCompute,
+    IRShaderStageClosestHit,
+    IRShaderStageIntersection,
+    IRShaderStageAnyHit,
+    IRShaderStageMiss,
+    IRShaderStageRayGeneration,
+    IRShaderStageCallable,
+    IRShaderStageStreamOut,
+    IRShaderStageStageIn,
+}
+
+#[repr(u32)]
+enum IRBytecodeOwnership {
+    None = 0,
+    Copy = 1,
+}
+
 #[derive(Debug, Clone)]
 struct IRObjectFn<'lib> {
     create_from_dxil: libloading::Symbol<
@@ -63,17 +92,11 @@ struct IRObjectFn<'lib> {
         unsafe extern "C" fn(*const u8, usize, IRBytecodeOwnership) -> *mut IRObjectOpaque,
     >,
     destroy: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque) -> ()>,
-    get_metal_ir_shader_stage: libloading::Symbol<'lib, unsafe extern "C" fn()>,
-    get_metal_lib_binary: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    get_metal_ir_shader_stage: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque) -> IRShaderStage>,
+    get_metal_lib_binary: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque, IRShaderStage, *mut IRMetalLibBinaryOpaque) -> bool>,
     get_reflection: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
-    get_type: libloading::Symbol<'lib, unsafe extern "C" fn() -> IRObjectType>,
+    get_type: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque) -> IRObjectType>,
     serialize: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
-}
-
-#[repr(u32)]
-enum IRBytecodeOwnership {
-    None = 0,
-    Copy = 1,
 }
 
 struct IRObject<'lib> {
@@ -85,12 +108,6 @@ impl<'lib> Drop for IRObject<'lib> {
     fn drop(&mut self) {
         unsafe { (self.funcs.destroy)(self.me) }
     }
-}
-
-fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack
-        .windows(needle.len())
-        .position(|window| window == needle)
 }
 
 impl<'lib> IRObject<'lib> {
@@ -120,7 +137,64 @@ impl<'lib> IRObject<'lib> {
     }
 
     fn get_type(&self) -> IRObjectType {
-        unsafe { (self.funcs.get_type)() }
+        unsafe { (self.funcs.get_type)(self.me) }
+    }
+
+    fn get_metal_ir_shader_stage(&self) -> IRShaderStage {
+        unsafe { (self.funcs.get_metal_ir_shader_stage)(self.me) }
+    }
+
+    fn get_metal_lib_binary(&self, shader_stage: IRShaderStage, dest_lib: &mut IRMetalLibBinary) -> bool {
+        unsafe { (self.funcs.get_metal_lib_binary)(self.me, shader_stage, dest_lib.me) }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+struct IRMetalLibBinaryFn<'lib> {
+    create: libloading::Symbol<'lib, unsafe extern "C" fn() -> *mut IRMetalLibBinaryOpaque>,
+    destroy: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRMetalLibBinaryOpaque)>,
+
+    get_bytecode: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRMetalLibBinaryOpaque, *mut u8) -> usize>,
+    get_bytecode_size: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRMetalLibBinaryOpaque) -> usize>,
+
+    synthesize_stage_in_function: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+}
+
+struct IRMetalLibBinary<'lib> {
+    me: *mut IRMetalLibBinaryOpaque,
+    funcs: IRMetalLibBinaryFn<'lib>,
+}
+
+impl<'lib> Drop for IRMetalLibBinary<'lib> {
+    fn drop(&mut self) {
+        unsafe { (self.funcs.destroy)(self.me) }
+    }
+}
+
+impl<'lib> IRMetalLibBinary<'lib> {
+    fn new(
+        lib: &'lib libloading::Library,
+    ) -> Result<IRMetalLibBinary<'lib>, Box<dyn std::error::Error>> {
+        unsafe {
+            let funcs = IRMetalLibBinaryFn {
+                create: lib.get(b"IRMetalLibBinaryCreate")?,
+                destroy: lib.get(b"IRMetalLibBinaryDestroy")?,
+                get_bytecode: lib.get(b"IRMetalLibGetBytecode")?,
+                get_bytecode_size: lib.get(b"IRMetalLibGetBytecodeSize")?,
+                synthesize_stage_in_function: lib.get(b"IRMetalLibSynthesizeStageInFunction")?,
+            };
+
+            let me = (funcs.create)();
+            Ok(Self { funcs, me })
+        }
+    }
+
+    fn get_byte_code(&self) -> Vec<u8> {
+        let size_in_bytes = unsafe { (self.funcs.get_bytecode_size)(self.me) };
+        let mut bytes = vec![0u8; size_in_bytes];
+        let written = unsafe { (self.funcs.get_bytecode)(self.me, bytes.as_mut_ptr()) };
+        bytes
     }
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -634,11 +708,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         // let memcpy = include_bytes!("C:/Users/Jasper/traverse/breda/apps/cs-memcpy/assets/shaders/memcpy.cs.dxil");
 
+        let mut mtl_binary = IRMetalLibBinary::new(&lib)?;
+
         let obj = IRObject::create_from_dxil(&lib, egui_update)?;
         let mut c = IRCompiler::new(&lib)?;
         c.set_global_root_signature(&root_sig);
         let mtllib = c.alloc_compile_and_link(&[b"main\0"], &obj)?;
         dbg!(mtllib.get_type());
+        dbg!(mtllib.get_metal_ir_shader_stage());
+        mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
+        dbg!(mtl_binary.get_byte_code().len());
+        std::fs::write("out.bin", mtl_binary.get_byte_code());
     }
     Ok(())
 }
