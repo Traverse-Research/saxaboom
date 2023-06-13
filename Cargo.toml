@@ -8,3 +8,11 @@ homepage = "https://traverseresearch.nl"
 repository = "https://github.com/Traverse-Research/saxaboom"
 description = "Binding library for metal_irconverter"
 include = ["src", "LICENSE", "CONTRIBUTING.md"]
+
+[workspace]
+members = [
+    "bindings_generator"
+]
+
+[dependencies]
+libloading = "0.8"
