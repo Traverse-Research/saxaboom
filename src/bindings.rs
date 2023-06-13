@@ -1235,8 +1235,6 @@ pub struct metal_irconverter {
         compiler: *mut IRCompiler,
         configuration: IRDepthFeedbackConfiguration,
     ),
-    pub IRMetalLibSynthesizeIntersectionWrapperFunction:
-        unsafe extern "C" fn(compiler: *const IRCompiler, binary: *mut IRMetalLibBinary) -> bool,
     pub IRCompilerSetEntryPointName:
         unsafe extern "C" fn(compiler: *mut IRCompiler, newName: *const ::std::os::raw::c_char),
     pub IRCompilerSetMinimumGPUFamily:
@@ -1397,9 +1395,6 @@ impl metal_irconverter {
         let IRCompilerSetDepthFeedbackConfiguration = __library
             .get(b"IRCompilerSetDepthFeedbackConfiguration\0")
             .map(|sym| *sym)?;
-        let IRMetalLibSynthesizeIntersectionWrapperFunction = __library
-            .get(b"IRMetalLibSynthesizeIntersectionWrapperFunction\0")
-            .map(|sym| *sym)?;
         let IRCompilerSetEntryPointName = __library
             .get(b"IRCompilerSetEntryPointName\0")
             .map(|sym| *sym)?;
@@ -1518,7 +1513,6 @@ impl metal_irconverter {
             IRCompilerEnableGeometryAndTessellationEmulation,
             IRCompilerSetDualSourceBlendingConfiguration,
             IRCompilerSetDepthFeedbackConfiguration,
-            IRMetalLibSynthesizeIntersectionWrapperFunction,
             IRCompilerSetEntryPointName,
             IRCompilerSetMinimumGPUFamily,
             IRCompilerSetMinimumDeploymentTarget,
@@ -1692,13 +1686,6 @@ impl metal_irconverter {
         configuration: IRDepthFeedbackConfiguration,
     ) {
         (self.IRCompilerSetDepthFeedbackConfiguration)(compiler, configuration)
-    }
-    pub unsafe fn IRMetalLibSynthesizeIntersectionWrapperFunction(
-        &self,
-        compiler: *const IRCompiler,
-        binary: *mut IRMetalLibBinary,
-    ) -> bool {
-        (self.IRMetalLibSynthesizeIntersectionWrapperFunction)(compiler, binary)
     }
     pub unsafe fn IRCompilerSetEntryPointName(
         &self,

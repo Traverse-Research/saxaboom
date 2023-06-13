@@ -17,6 +17,8 @@ fn main() {
         .blocklist_item("false_")
         .blocklist_item("__bool_true_false_are_defined")
         .blocklist_item("_opaque_pthread.*")
+        // Not in the DLLs provided by Apple
+        .blocklist_item("IRMetalLibSynthesizeIntersectionWrapperFunction")
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file(out_file)
