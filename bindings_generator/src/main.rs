@@ -8,7 +8,9 @@ fn main() {
         .dynamic_link_require_all(true)
         .dynamic_library_name("metal_irconverter")
         .layout_tests(false)
-        .default_enum_style(bindgen::EnumVariation::Rust {non_exhaustive: false})
+        .default_enum_style(bindgen::EnumVariation::Rust {
+            non_exhaustive: false,
+        })
         .bitfield_enum(".*Flags$")
         .blocklist_item("__darwin.*")
         .blocklist_item("__DARWIN.*")
