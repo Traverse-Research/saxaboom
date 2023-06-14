@@ -1,14 +1,9 @@
 #![doc = include_str!("../README.md")]
 
-pub mod types;
 pub mod bindings;
+pub mod types;
 
-struct IRErrorOpaque;
-struct IRRootSignatureOpaque;
-struct IRObjectOpaque;
-struct IRCompilerOpaque;
-struct IRMetalLibBinaryOpaque;
-struct IRShaderReflectionOpaque;
+pub use types::*;
 
 #[derive(Debug)]
 struct IRCompilerFn<'lib> {
@@ -83,12 +78,6 @@ pub enum IRShaderStage {
     IRShaderStageStageIn,
 }
 
-#[repr(u32)]
-pub enum IRBytecodeOwnership {
-    None = 0,
-    Copy = 1,
-}
-
 #[derive(Debug, Clone)]
 struct IRObjectFn<'lib> {
     create_from_dxil: libloading::Symbol<
@@ -141,7 +130,7 @@ impl<'lib> IRObject<'lib> {
             let me = (funcs.create_from_dxil)(
                 bytecode.as_ptr(),
                 bytecode.len(),
-                IRBytecodeOwnership::None,
+                IRBytecodeOwnership::IRBytecodeOwnershipNone,
             );
 
             Ok(Self { funcs, me })
@@ -215,248 +204,6 @@ impl<'lib> IRMetalLibBinary<'lib> {
         let written = unsafe { (self.funcs.get_bytecode)(self.me, bytes.as_mut_ptr()) };
         bytes
     }
-}
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRDescriptorRangeType {
-    IRDescriptorRangeTypeSRV = 0,
-    IRDescriptorRangeTypeUAV = 1,
-    IRDescriptorRangeTypeCBV = 2,
-    IRDescriptorRangeTypeSampler = 3,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRDescriptorRangeFlags {
-    IRDescriptorRangeFlagNone = 0,
-    IRDescriptorRangeFlagDescriptorsVolatile = 0x1,
-    IRDescriptorRangeFlagDataVolatile = 0x2,
-    IRDescriptorRangeFlagDataStaticWhileSetAtExecute = 0x4,
-    IRDescriptorRangeFlagDataStatic = 0x8,
-    IRDescriptorRangeFlagDescriptorsStaticKeepingBufferBoundsChecks = 0x10000,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRDescriptorRange1 {
-    pub range_type: IRDescriptorRangeType,
-    pub num_descriptors: u32,
-    pub base_shader_register: u32,
-    pub register_space: u32,
-    pub flags: IRDescriptorRangeFlags,
-    pub offset_in_descriptors_from_table_start: u32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootDescriptorTable1 {
-    pub num_descriptor_ranges: u32,
-    pub p_descriptor_ranges: *const IRDescriptorRange1,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRRootDescriptorFlags {
-    IRRootDescriptorFlagNone = 0,
-    IRRootDescriptorFlagDataVolatile = 0x2,
-    IRRootDescriptorFlagDataStaticWhileSetAtExecute = 0x4,
-    IRRootDescriptorFlagDataStatic = 0x8,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootDescriptor1 {
-    pub shader_register: u32,
-    pub register_space: u32,
-    pub flags: IRRootDescriptorFlags,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRRootParameterType {
-    IRRootParameterTypeDescriptorTable = 0,
-    IRRootParameterType32BitConstants = 1,
-    IRRootParameterTypeCBV = 2,
-    IRRootParameterTypeSRV = 3,
-    IRRootParameterTypeUAV = 4,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRShaderVisibility {
-    IRShaderVisibilityAll = 0,
-    IRShaderVisibilityVertex = 1,
-    IRShaderVisibilityHull = 2,
-    IRShaderVisibilityDomain = 3,
-    IRShaderVisibilityGeometry = 4,
-    IRShaderVisibilityPixel = 5,
-    IRShaderVisibilityAmplification = 6,
-    IRShaderVisibilityMesh = 7,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootConstants {
-    pub shader_register: u32,
-    pub register_space: u32,
-    pub num32_bit_values: u32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union IRRootParameter1_u {
-    pub descriptor_table: IRRootDescriptorTable1,
-    pub constants: IRRootConstants,
-    pub descriptor: IRRootDescriptor1,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootParameter1 {
-    pub parameter_type: IRRootParameterType,
-    pub u: IRRootParameter1_u,
-    pub shader_visibility: IRShaderVisibility,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRFilter {
-    IRFilterMinMagMipPoint = 0,
-    IRFilterMinMagPointMipLinear = 0x1,
-    IRFilterMinPointMagLinearMipPoint = 0x4,
-    IRFilterMinPointMagMipLinear = 0x5,
-    IRFilterMinLinearMagMipPoint = 0x10,
-    IRFilterMinLinearMagPointMipLinear = 0x11,
-    IRFilterMinMagLinearMipPoint = 0x14,
-    IRFilterMinMagMipLinear = 0x15,
-    IRFilterAnisotropic = 0x55,
-    IRFilterComparisonMinMagMipPoint = 0x80,
-    IRFilterComparisonMinMagPointMipLinear = 0x81,
-    IRFilterComparisonMinPointMagLinearMipPoint = 0x84,
-    IRFilterComparisonMinPointMagMipLinear = 0x85,
-    IRFilterComparisonMinLinearMagMipPoint = 0x90,
-    IRFilterComparisonMinLinearMagPointMipLinear = 0x91,
-    IRFilterComparisonMinMagLinearMipPoint = 0x94,
-    IRFilterComparisonMinMagMipLinear = 0x95,
-    IRFilterComparisonAnisotropic = 0xd5,
-    IRFilterMinimumMinMagMipPoint = 0x100,
-    IRFilterMinimumMinMagPointMipLinear = 0x101,
-    IRFilterMinimumMinPointMagLinearMipPoint = 0x104,
-    IRFilterMinimumMinPointMagMipLinear = 0x105,
-    IRFilterMinimumMinLinearMagMipPoint = 0x110,
-    IRFilterMinimumMinLinearMagPointMipLinear = 0x111,
-    IRFilterMinimumMinMagLinearMipPoint = 0x114,
-    IRFilterMinimumMinMagMipLinear = 0x115,
-    IRFilterMinimumAnisotropic = 0x155,
-    IRFilterMaximumMinMagMipPoint = 0x180,
-    IRFilterMaximumMinMagPointMipLinear = 0x181,
-    IRFilterMaximumMinPointMagLinearMipPoint = 0x184,
-    IRFilterMaximumMinPointMagMipLinear = 0x185,
-    IRFilterMaximumMinLinearMagMipPoint = 0x190,
-    IRFilterMaximumMinLinearMagPointMipLinear = 0x191,
-    IRFilterMaximumMinMagLinearMipPoint = 0x194,
-    IRFilterMaximumMinMagMipLinear = 0x195,
-    IRFilterMaximumAnisotropic = 0x1d5,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRTextureAddressMode {
-    IRTextureAddressModeWrap = 1,
-    IRTextureAddressModeMirror = 2,
-    IRTextureAddressModeClamp = 3,
-    IRTextureAddressModeBorder = 4,
-    IRTextureAddressModeMirrorOnce = 5,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRComparisonFunction {
-    IRComparisonFunctionNever = 1,
-    IRComparisonFunctionLess = 2,
-    IRComparisonFunctionEqual = 3,
-    IRComparisonFunctionLessEqual = 4,
-    IRComparisonFunctionGreater = 5,
-    IRComparisonFunctionNotEqual = 6,
-    IRComparisonFunctionGreaterEqual = 7,
-    IRComparisonFunctionAlways = 8,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRStaticBorderColor {
-    IRStaticBorderColorTransparentBlack = 0,
-    IRStaticBorderColorOpaqueBlack = 1,
-    IRStaticBorderColorOpaqueWhite = 2,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRStaticSamplerDescriptor {
-    pub filter: IRFilter,
-    pub address_u: IRTextureAddressMode,
-    pub address_v: IRTextureAddressMode,
-    pub address_w: IRTextureAddressMode,
-    pub mip_lod_bias: f32,
-    pub max_anisotropy: u32,
-    pub comparison_func: IRComparisonFunction,
-    pub border_color: IRStaticBorderColor,
-    pub min_lod: f32,
-    pub max_lod: f32,
-    pub shader_register: u32,
-    pub register_space: u32,
-    pub shader_visibility: IRShaderVisibility,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRRootSignatureFlags {
-    IRRootSignatureFlagNone = 0,
-    IRRootSignatureFlagAllowInputAssemblerInputLayout = 0x1,
-    IRRootSignatureFlagDenyVertexShaderRootAccess = 0x2,
-    IRRootSignatureFlagDenyHullShaderRootAccess = 0x4,
-    IRRootSignatureFlagDenyDomainShaderRootAccess = 0x8,
-    IRRootSignatureFlagDenyGeometryShaderRootAccess = 0x10,
-    IRRootSignatureFlagDenyPixelShaderRootAccess = 0x20,
-    IRRootSignatureFlagAllowStreamOutput = 0x40,
-    IRRootSignatureFlagLocalRootSignature = 0x80,
-    IRRootSignatureFlagDenyAmplificationShaderRootAccess = 0x100,
-    IRRootSignatureFlagDenyMeshShaderRootAccess = 0x200,
-    IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed = 0x400,
-    IRRootSignatureFlagSamplerHeapDirectlyIndexed = 0x800,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootSignatureDescriptor1 {
-    pub num_parameters: u32,
-    pub p_parameters: *const IRRootParameter1,
-    pub num_static_samplers: u32,
-    pub p_static_samplers: *const IRStaticSamplerDescriptor,
-    pub flags: IRRootSignatureFlags,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union IRVersionedRootSignatureDescriptor_u {
-    // desc_1_0: IRRootSignatureDescriptor,
-    pub desc_1_1: IRRootSignatureDescriptor1,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRRootSignatureVersion {
-    IRRootSignatureVersion_1_0 = 0x1,
-    IRRootSignatureVersion_1_1 = 0x2,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRVersionedRootSignatureDescriptor {
-    pub version: IRRootSignatureVersion,
-    pub u: IRVersionedRootSignatureDescriptor_u,
 }
 
 #[derive(Debug)]

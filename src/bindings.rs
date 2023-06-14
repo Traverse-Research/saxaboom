@@ -23,30 +23,8 @@ pub const IR_VERSION_MAJOR: u32 = 0;
 pub const IR_VERSION_MINOR: u32 = 1;
 pub const IR_VERSION_PATCH: u32 = 0;
 pub const IRDescriptorRangeOffsetAppend: u32 = 4294967295;
-pub type wchar_t = ::std::os::raw::c_ushort;
-pub type max_align_t = f64;
-pub type va_list = *mut ::std::os::raw::c_char;
-pub type __vcrt_bool = bool;
-pub type int_least8_t = ::std::os::raw::c_schar;
-pub type int_least16_t = ::std::os::raw::c_short;
-pub type int_least32_t = ::std::os::raw::c_int;
-pub type int_least64_t = ::std::os::raw::c_longlong;
-pub type uint_least8_t = ::std::os::raw::c_uchar;
-pub type uint_least16_t = ::std::os::raw::c_ushort;
-pub type uint_least32_t = ::std::os::raw::c_uint;
-pub type uint_least64_t = ::std::os::raw::c_ulonglong;
-pub type int_fast8_t = ::std::os::raw::c_schar;
-pub type int_fast16_t = ::std::os::raw::c_int;
-pub type int_fast32_t = ::std::os::raw::c_int;
-pub type int_fast64_t = ::std::os::raw::c_longlong;
-pub type uint_fast8_t = ::std::os::raw::c_uchar;
-pub type uint_fast16_t = ::std::os::raw::c_uint;
-pub type uint_fast32_t = ::std::os::raw::c_uint;
-pub type uint_fast64_t = ::std::os::raw::c_ulonglong;
-pub type intmax_t = ::std::os::raw::c_longlong;
-pub type uintmax_t = ::std::os::raw::c_ulonglong;
 extern crate libloading;
-pub struct metal_irconverter {
+pub struct MetalIrConverter {
     __library: ::libloading::Library,
     pub IRErrorGetCode: unsafe extern "C" fn(error: *const IRErrorOpaque) -> u32,
     pub IRErrorGetPayload:
@@ -220,7 +198,7 @@ pub struct metal_irconverter {
         reflection: *mut IRShaderReflectionOpaque,
     ),
 }
-impl metal_irconverter {
+impl MetalIrConverter {
     pub unsafe fn new<P>(path: P) -> Result<Self, ::libloading::Error>
     where
         P: AsRef<::std::ffi::OsStr>,
@@ -375,7 +353,7 @@ impl metal_irconverter {
         let IRShaderReflectionDeserialize = __library
             .get(b"IRShaderReflectionDeserialize\0")
             .map(|sym| *sym)?;
-        Ok(metal_irconverter {
+        Ok(MetalIrConverter {
             __library,
             IRErrorGetCode,
             IRErrorGetPayload,

@@ -17,19 +17,19 @@ fn create_static_sampler(
     let max_anisotropy = anisotropy.unwrap_or(1);
 
     IRStaticSamplerDescriptor {
-        filter: min_mag_mip_mode,
-        address_u: address_mode,
-        address_v: address_mode,
-        address_w: address_mode,
-        mip_lod_bias: 0.0,
-        max_anisotropy: max_anisotropy,
-        comparison_func: IRComparisonFunction::IRComparisonFunctionNever,
-        min_lod: 0.0,
-        max_lod: 100000.0,
-        shader_register: index,
-        register_space: 0,
-        shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
-        border_color: IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
+        Filter: min_mag_mip_mode,
+        AddressU: address_mode,
+        AddressV: address_mode,
+        AddressW: address_mode,
+        MipLODBias: 0.0,
+        MaxAnisotropy: max_anisotropy,
+        ComparisonFunc: IRComparisonFunction::IRComparisonFunctionNever,
+        MinLOD: 0.0,
+        MaxLOD: 100000.0,
+        ShaderRegister: index,
+        RegisterSpace: 0,
+        ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
+        BorderColor: IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
     }
 }
 
@@ -41,25 +41,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let parameters = {
             let push_constants = IRRootParameter1 {
-                parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
-                shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
-                u: IRRootParameter1_u {
-                    constants: IRRootConstants {
-                        register_space: 0 as u32,
-                        shader_register: 0,
-                        num32_bit_values: 4, // debug has 6
+                ParameterType: IRRootParameterType::IRRootParameterType32BitConstants,
+                ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
+                u_1: IRRootParameter1_u {
+                    Constants: IRRootConstants {
+                        RegisterSpace: 0 as u32,
+                        ShaderRegister: 0,
+                        Num32BitValues: 4, // debug has 6
                     },
                 },
             };
 
             let indirect_identifier = IRRootParameter1 {
-                parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
-                shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
-                u: IRRootParameter1_u {
-                    constants: IRRootConstants {
-                        register_space: 1 as u32,
-                        shader_register: 0,
-                        num32_bit_values: 1,
+                ParameterType: IRRootParameterType::IRRootParameterType32BitConstants,
+                ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
+                u_1: IRRootParameter1_u {
+                    Constants: IRRootConstants {
+                        RegisterSpace: 1 as u32,
+                        ShaderRegister: 0,
+                        Num32BitValues: 1,
                     },
                 },
             };
@@ -113,16 +113,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ];
 
         let desc_1_1 = IRRootSignatureDescriptor1 {
-            flags: IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
-            num_parameters: parameters.len() as u32,
-            p_parameters: parameters.as_ptr(),
-            num_static_samplers: static_samplers.len() as u32,
-            p_static_samplers: static_samplers.as_ptr(),
+            Flags: IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
+            NumParameters: parameters.len() as u32,
+            pParameters: parameters.as_ptr(),
+            NumStaticSamplers: static_samplers.len() as u32,
+            pStaticSamplers: static_samplers.as_ptr(),
         };
 
         let desc = IRVersionedRootSignatureDescriptor {
             version: IRRootSignatureVersion::IRRootSignatureVersion_1_1,
-            u: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
+            u_1: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
         };
 
         let root_sig = IRRootSignature::create_from_descriptor(&lib, &desc)?;
@@ -143,6 +143,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
         dbg!(mtl_binary.get_byte_code().len());
         std::fs::write("out.bin", mtl_binary.get_byte_code());
+    }
+
+    {
+        use saxaboom::bindings::*;
+        use saxaboom::types::*;
+
+        let lib = unsafe {
+            MetalIrConverter::new(
+                "C:/Program Files/Metal Shader Converter/lib/metalirconverter.dll",
+            )?
+        };
+
+        dbg!(lib.IRErrorGetCode);
     }
     Ok(())
 }
