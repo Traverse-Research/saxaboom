@@ -1,11 +1,14 @@
 #![doc = include_str!("../README.md")]
 
-struct IRCompilerOpaque;
-struct IRObjectOpaque;
+pub mod types;
+pub mod bindings;
+
+struct IRErrorOpaque;
 struct IRRootSignatureOpaque;
+struct IRObjectOpaque;
+struct IRCompilerOpaque;
 struct IRMetalLibBinaryOpaque;
 struct IRShaderReflectionOpaque;
-struct IRErrorOpaque;
 
 #[derive(Debug)]
 struct IRCompilerFn<'lib> {

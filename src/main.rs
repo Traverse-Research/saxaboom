@@ -6,6 +6,8 @@ use saxaboom::{
     IRVersionedRootSignatureDescriptor, IRVersionedRootSignatureDescriptor_u,
 };
 
+use saxaboom::bindings::*;
+
 fn create_static_sampler(
     min_mag_mip_mode: IRFilter,
     address_mode: IRTextureAddressMode,
