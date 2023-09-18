@@ -1,5 +1,7 @@
 #![doc = include_str!("../README.md")]
 
+use std::path::Path;
+
 struct IRCompilerOpaque;
 struct IRObjectOpaque;
 struct IRRootSignatureOpaque;
@@ -499,8 +501,6 @@ impl<'lib> IRRootSignature<'lib> {
 
             let me = (funcs.create_from_descriptor)(desc, &mut error);
 
-            dbg!(error);
-
             Ok(Self { funcs, me })
         }
     }
@@ -587,10 +587,6 @@ impl<'lib> IRCompiler<'lib> {
             )
         };
 
-        dbg!(v);
-
-        dbg!(error);
-
         if error.is_null() {
             Ok(IRObject {
                 funcs: input.funcs.clone(),
@@ -600,4 +596,152 @@ impl<'lib> IRCompiler<'lib> {
             panic!("{:?}", error);
         }
     }
+}
+
+// Moved from main.rs to lib.rs
+fn create_static_sampler(
+    min_mag_mip_mode: IRFilter,
+    address_mode: IRTextureAddressMode,
+    index: u32,
+    anisotropy: Option<u32>,
+) -> IRStaticSamplerDescriptor {
+    let max_anisotropy = anisotropy.unwrap_or(1);
+
+    IRStaticSamplerDescriptor {
+        filter: min_mag_mip_mode,
+        address_u: address_mode,
+        address_v: address_mode,
+        address_w: address_mode,
+        mip_lod_bias: 0.0,
+        max_anisotropy: max_anisotropy,
+        comparison_func: IRComparisonFunction::IRComparisonFunctionNever,
+        min_lod: 0.0,
+        max_lod: 100000.0,
+        shader_register: index,
+        register_space: 0,
+        shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
+        border_color: IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
+    }
+}
+
+/// Takes a DXIL binary, cross-compiles it to metal and returns a metallib binary
+pub fn compile_dxil_to_metallib(
+    dxil_binary: &Vec<u8>,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    unsafe {
+        // Load the metal shader converter library
+        // todo(lily): reconsider the hardcoded path here. the .pkg file is hardcoded to this path, but maybe we can include this dylib in the repo?
+        #[cfg(target_os = "macos")]
+        let lib = libloading::Library::new("/usr/local/lib/libmetalirconverter.dylib")?;
+        #[cfg(target_os = "windows")]
+        let lib = libloading::Library::new("metalirconverter.dll")?; // hope it's in the path or cwd, otherwise too bad
+
+        // Set up root signature. This should match up with the root signature as defined in breda
+        let parameters = {
+            let push_constants = IRRootParameter1 {
+                parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
+                shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
+                u: IRRootParameter1_u {
+                    constants: IRRootConstants {
+                        register_space: 0 as u32,
+                        shader_register: 0,
+                        num32_bit_values: 4, // debug has 6
+                    },
+                },
+            };
+
+            let indirect_identifier = IRRootParameter1 {
+                parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
+                shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
+                u: IRRootParameter1_u {
+                    constants: IRRootConstants {
+                        register_space: 1 as u32,
+                        shader_register: 0,
+                        num32_bit_values: 1,
+                    },
+                },
+            };
+
+            vec![push_constants, indirect_identifier]
+        };
+
+        let static_samplers = [
+            create_static_sampler(
+                IRFilter::IRFilterMinMagMipPoint,
+                IRTextureAddressMode::IRTextureAddressModeWrap,
+                0,
+                None,
+            ),
+            create_static_sampler(
+                IRFilter::IRFilterMinMagMipPoint,
+                IRTextureAddressMode::IRTextureAddressModeClamp,
+                1,
+                None,
+            ),
+            create_static_sampler(
+                IRFilter::IRFilterMinMagMipLinear,
+                IRTextureAddressMode::IRTextureAddressModeWrap,
+                2,
+                None,
+            ),
+            create_static_sampler(
+                IRFilter::IRFilterMinMagMipLinear,
+                IRTextureAddressMode::IRTextureAddressModeClamp,
+                3,
+                None,
+            ),
+            create_static_sampler(
+                IRFilter::IRFilterMinMagMipLinear,
+                IRTextureAddressMode::IRTextureAddressModeBorder,
+                4,
+                None,
+            ),
+            create_static_sampler(
+                IRFilter::IRFilterAnisotropic,
+                IRTextureAddressMode::IRTextureAddressModeWrap,
+                5,
+                Some(2),
+            ),
+            create_static_sampler(
+                IRFilter::IRFilterAnisotropic,
+                IRTextureAddressMode::IRTextureAddressModeWrap,
+                6,
+                Some(4),
+            ),
+        ];
+
+        let desc_1_1 = IRRootSignatureDescriptor1 {
+            flags: IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
+            num_parameters: parameters.len() as u32,
+            p_parameters: parameters.as_ptr(),
+            num_static_samplers: static_samplers.len() as u32,
+            p_static_samplers: static_samplers.as_ptr(),
+        };
+
+        let desc = IRVersionedRootSignatureDescriptor {
+            version: IRRootSignatureVersion::IRRootSignatureVersion_1_1,
+            u: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
+        };
+
+        let root_sig = IRRootSignature::create_from_descriptor(&lib, &desc)?;
+
+        // Cross-compile to Metal
+        let mut mtl_binary = IRMetalLibBinary::new(&lib)?;
+        let obj = IRObject::create_from_dxil(&lib, &dxil_binary)?;
+        let mut c = IRCompiler::new(&lib)?;
+        c.set_global_root_signature(&root_sig);
+        let mtllib = c.alloc_compile_and_link(&[b"main\0"], &obj)?;
+        mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
+
+        Ok(mtl_binary.get_byte_code())
+    }
+}
+
+pub fn compile_dxil_to_metallib_from_path(
+    path_dxil: &Path,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    // Load DXIL binary from path
+    let dxil_binary = std::fs::read(path_dxil)?;
+    let metallib = compile_dxil_to_metallib(&dxil_binary);
+    return metallib;
 }
