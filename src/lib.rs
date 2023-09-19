@@ -626,15 +626,12 @@ fn create_static_sampler(
 
 /// Takes a DXIL binary, cross-compiles it to metal and returns a metallib binary
 pub fn compile_dxil_to_metallib(
+    path_compiler_lib: &Path,
     dxil_binary: &Vec<u8>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     unsafe {
         // Load the metal shader converter library
-        // todo(lily): reconsider the hardcoded path here. the .pkg file is hardcoded to this path, but maybe we can include this dylib in the repo?
-        #[cfg(target_os = "macos")]
-        let lib = libloading::Library::new("/usr/local/lib/libmetalirconverter.dylib")?;
-        #[cfg(target_os = "windows")]
-        let lib = libloading::Library::new("metalirconverter.dll")?; // hope it's in the path or cwd, otherwise too bad
+        let lib = libloading::Library::new(path_compiler_lib)?;
 
         // Set up root signature. This should match up with the root signature as defined in breda
         let parameters = {
@@ -738,10 +735,11 @@ pub fn compile_dxil_to_metallib(
 }
 
 pub fn compile_dxil_to_metallib_from_path(
+    path_compiler_lib: &Path,
     path_dxil: &Path,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     // Load DXIL binary from path
     let dxil_binary = std::fs::read(path_dxil)?;
-    let metallib = compile_dxil_to_metallib(&dxil_binary);
+    let metallib = compile_dxil_to_metallib(path_compiler_lib, &dxil_binary);
     return metallib;
 }
