@@ -1,9 +1,10 @@
 use saxaboom::{
-    IRComparisonFunction, IRCompiler, IRFilter, IRMetalLibBinary, IRObject, IRRootConstants,
-    IRRootDescriptor1, IRRootParameter1, IRRootParameter1_u, IRRootParameterType, IRRootSignature,
-    IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion, IRShaderStage,
-    IRShaderVisibility, IRStaticBorderColor, IRStaticSamplerDescriptor, IRTextureAddressMode,
-    IRVersionedRootSignatureDescriptor, IRVersionedRootSignatureDescriptor_u,
+    IRComparisonFunction, IRCompiler, IRFilter, IRMetalLibBinary, IRObject, IRReflectionVersion,
+    IRRootConstants, IRRootDescriptor1, IRRootParameter1, IRRootParameter1_u, IRRootParameterType,
+    IRRootSignature, IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion,
+    IRShaderReflection, IRShaderStage, IRShaderVisibility, IRStaticBorderColor,
+    IRStaticSamplerDescriptor, IRTextureAddressMode, IRVersionedRootSignatureDescriptor,
+    IRVersionedRootSignatureDescriptor_u,
 };
 
 fn create_static_sampler(
@@ -125,9 +126,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let root_sig = IRRootSignature::create_from_descriptor(&lib, &desc)?;
 
-        let egui_update = include_bytes!(
-            "C:/Users/Jasper/traverse/breda/crates/breda-egui/assets/shaders/egui_update.cs.dxil"
-        );
+        let egui_update =
+            include_bytes!("D:/breda/crates/breda-egui/assets/shaders/egui_update.cs.dxil");
         // let memcpy = include_bytes!("C:/Users/Jasper/traverse/breda/apps/cs-memcpy/assets/shaders/memcpy.cs.dxil");
 
         let mut mtl_binary = IRMetalLibBinary::new(&lib)?;
@@ -139,6 +139,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dbg!(mtllib.get_type());
         dbg!(mtllib.get_metal_ir_shader_stage());
         mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
+
+        let mut mtl_reflection = IRShaderReflection::new(&lib)?;
+        dbg!(mtllib.get_reflection(IRShaderStage::IRShaderStageCompute, &mut mtl_reflection));
+        dbg!(
+            mtl_reflection
+                .get_compute_info(IRReflectionVersion::IRReflectionVersion_1_0)
+                .unwrap()
+                .u
+                .info_1_0
+        );
+
         dbg!(mtl_binary.get_byte_code().len());
         std::fs::write("out.bin", mtl_binary.get_byte_code());
     }

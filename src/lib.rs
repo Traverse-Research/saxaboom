@@ -7,6 +7,13 @@ struct IRMetalLibBinaryOpaque;
 struct IRShaderReflectionOpaque;
 struct IRErrorOpaque;
 
+use std::mem::MaybeUninit;
+
+#[repr(i32)]
+pub enum IRReflectionVersion {
+    IRReflectionVersion_1_0 = 1,
+}
+
 #[derive(Debug)]
 struct IRCompilerFn<'lib> {
     alloc_compile_and_link: libloading::Symbol<
@@ -58,6 +65,20 @@ pub enum IRObjectType {
     IRObjectTypeMetalIRObject,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct IRCSInfo_1_0 {
+    pub tg_size: [u32; 3],
+}
+
+pub union IRVersionedCSInfo_u {
+    pub info_1_0: IRCSInfo_1_0,
+}
+
+pub struct IRVersionedCSInfo {
+    pub version: IRReflectionVersion,
+    pub u: IRVersionedCSInfo_u,
+}
+
 #[repr(u32)]
 #[derive(Debug)]
 pub enum IRShaderStage {
@@ -86,6 +107,118 @@ pub enum IRBytecodeOwnership {
     Copy = 1,
 }
 
+struct IRReflectionFn<'lib> {
+    create: libloading::Symbol<'lib, unsafe extern "C" fn() -> *mut IRShaderReflectionOpaque>,
+    destroy: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    get_entry_point_function_name:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> *const u8>,
+    needs_function_constants:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> bool>,
+    get_function_constant_count:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> usize>,
+
+    copy_function_constants:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_function_constants:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    copy_compute_info: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(
+            *mut IRShaderReflectionOpaque,
+            version: IRReflectionVersion,
+            csinfo: *mut IRVersionedCSInfo,
+        ) -> bool,
+    >,
+    copy_vertex_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    copy_fragment_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    copy_geometry_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    copy_hull_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    copy_domain_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_compute_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_vertex_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_fragment_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_geometry_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_hull_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    release_domain_info:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    get_resource_count:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+    get_resource_locations:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRShaderReflectionOpaque) -> ()>,
+}
+
+pub struct IRShaderReflection<'lib> {
+    me: *mut IRShaderReflectionOpaque,
+    funcs: IRReflectionFn<'lib>,
+}
+
+impl<'lib> Drop for IRShaderReflection<'lib> {
+    fn drop(&mut self) {
+        unsafe { (self.funcs.destroy)(self.me) }
+    }
+}
+
+impl<'lib> IRShaderReflection<'lib> {
+    pub fn new(
+        lib: &'lib libloading::Library,
+    ) -> Result<IRShaderReflection<'lib>, Box<dyn std::error::Error>> {
+        unsafe {
+            let funcs = IRReflectionFn {
+                create: lib.get(b"IRShaderReflectionCreate")?,
+                destroy: lib.get(b"IRShaderReflectionDestroy")?,
+                get_entry_point_function_name: lib
+                    .get(b"IRShaderReflectionGetEntryPointFunctionName")?,
+                needs_function_constants: lib.get(b"IRShaderReflectionNeedsFunctionConstants")?,
+                get_function_constant_count: lib
+                    .get(b"IRShaderReflectionGetFunctionConstantCount")?,
+
+                copy_function_constants: lib.get(b"IRShaderReflectionCopyFunctionConstants")?,
+                release_function_constants: lib
+                    .get(b"IRShaderReflectionReleaseFunctionConstants")?,
+                copy_compute_info: lib.get(b"IRShaderReflectionCopyComputeInfo")?,
+                copy_vertex_info: lib.get(b"IRShaderReflectionCopyVertexInfo")?,
+                copy_fragment_info: lib.get(b"IRShaderReflectionCopyFragmentInfo")?,
+                copy_geometry_info: lib.get(b"IRShaderReflectionCopyGeometryInfo")?,
+                copy_hull_info: lib.get(b"IRShaderReflectionCopyHullInfo")?,
+                copy_domain_info: lib.get(b"IRShaderReflectionCopyDomainInfo")?,
+                release_compute_info: lib.get(b"IRShaderReflectionReleaseComputeInfo")?,
+                release_vertex_info: lib.get(b"IRShaderReflectionReleaseVertexInfo")?,
+                release_fragment_info: lib.get(b"IRShaderReflectionReleaseFragmentInfo")?,
+                release_geometry_info: lib.get(b"IRShaderReflectionReleaseGeometryInfo")?,
+                release_hull_info: lib.get(b"IRShaderReflectionReleaseHullInfo")?,
+                release_domain_info: lib.get(b"IRShaderReflectionReleaseDomainInfo")?,
+                get_resource_count: lib.get(b"IRShaderReflectionGetResourceCount")?,
+                get_resource_locations: lib.get(b"IRShaderReflectionGetResourceLocations")?,
+            };
+
+            let me = (funcs.create)();
+            Ok(Self { funcs, me })
+        }
+    }
+
+    pub fn get_compute_info(
+        &self,
+        version: IRReflectionVersion,
+    ) -> Result<IRVersionedCSInfo, Box<dyn std::error::Error>> {
+        let mut info = unsafe { MaybeUninit::uninit() };
+        if unsafe { (self.funcs.copy_compute_info)(self.me, version, info.as_mut_ptr()) } {
+            Ok(unsafe { info.assume_init() })
+        } else {
+            panic!("Test me");
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct IRObjectFn<'lib> {
     create_from_dxil: libloading::Symbol<
@@ -103,7 +236,14 @@ struct IRObjectFn<'lib> {
             *mut IRMetalLibBinaryOpaque,
         ) -> bool,
     >,
-    get_reflection: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    get_reflection: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(
+            *mut IRObjectOpaque,
+            IRShaderStage,
+            *mut IRShaderReflectionOpaque,
+        ) -> bool,
+    >,
     get_type: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque) -> IRObjectType>,
     serialize: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
 }
@@ -159,6 +299,14 @@ impl<'lib> IRObject<'lib> {
         dest_lib: &mut IRMetalLibBinary,
     ) -> bool {
         unsafe { (self.funcs.get_metal_lib_binary)(self.me, shader_stage, dest_lib.me) }
+    }
+
+    pub fn get_reflection(
+        &self,
+        shader_stage: IRShaderStage,
+        reflection: &mut IRShaderReflection,
+    ) -> bool {
+        unsafe { (self.funcs.get_reflection)(self.me, shader_stage, reflection.me) }
     }
 }
 

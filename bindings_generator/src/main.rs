@@ -5,10 +5,7 @@ fn main() {
 
     bindgen::Builder::default()
         .header(header)
-        .clang_args(&[
-            "-I./vendor/",
-            "-Wno-microsoft-enum-forward-reference"
-        ])
+        .clang_args(&["-I./vendor/", "-Wno-microsoft-enum-forward-reference"])
         .dynamic_link_require_all(true)
         .dynamic_library_name("metal_irconverter")
         .layout_tests(false)
@@ -28,7 +25,6 @@ fn main() {
         .blocklist_item("__security_cookie")
         .blocklist_item("__va_start")
         .blocklist_item("__report_gsfailure")
-
         // Not in the DLLs provided by Apple
         .blocklist_item("IRMetalLibSynthesizeIntersectionWrapperFunction")
         .generate()
