@@ -135,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let obj = IRObject::create_from_dxil(&lib, egui_update)?;
         let mut c = IRCompiler::new(&lib)?;
         c.set_global_root_signature(&root_sig);
-        let mtllib = c.alloc_compile_and_link(&[b"main\0"], &obj)?;
+        let mtllib = c.alloc_compile_and_link(b"main\0", &obj)?;
         dbg!(mtllib.get_type());
         dbg!(mtllib.get_metal_ir_shader_stage());
         mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);

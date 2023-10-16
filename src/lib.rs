@@ -20,8 +20,7 @@ struct IRCompilerFn<'lib> {
         'lib,
         unsafe extern "C" fn(
             *mut IRCompilerOpaque,
-            *const *const u8,
-            entry_points: usize,
+            *const u8,
             *const IRObjectOpaque,
             *mut *mut IRErrorOpaque,
         ) -> *mut IRObjectOpaque,
@@ -716,23 +715,13 @@ impl<'lib> IRCompiler<'lib> {
 
     pub fn alloc_compile_and_link(
         &mut self,
-        entry_points: &[&[u8]],
+        entry_point: &[u8],
         input: &'lib IRObject,
     ) -> Result<IRObject<'lib>, Box<dyn std::error::Error>> {
-        let entry_points = entry_points
-            .iter()
-            .map(|e| e.as_ptr())
-            .collect::<Vec<*const u8>>();
         let mut error: *mut IRErrorOpaque = unsafe { std::ptr::null_mut::<IRErrorOpaque>().add(0) };
 
         let v = unsafe {
-            (self.funcs.alloc_compile_and_link)(
-                self.me,
-                entry_points.as_ptr(),
-                entry_points.len(),
-                input.me,
-                &mut error,
-            )
+            (self.funcs.alloc_compile_and_link)(self.me, entry_point.as_ptr(), input.me, &mut error)
         };
 
         dbg!(v);

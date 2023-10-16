@@ -54,6 +54,13 @@ struct IRMetalLibBinary;
 struct IRShaderReflection;
 struct IRError;
 
+typedef struct IRCompiler IRCompiler;
+typedef struct IRObject IRObject;
+typedef struct IRRootSignature IRRootSignature;
+typedef struct IRMetalLibBinary IRMetalLibBinary;
+typedef struct IRShaderReflection IRShaderReflection;
+typedef struct IRError IRError;
+
 typedef enum IRShaderStage
 {
     IRShaderStageInvalid,
@@ -180,6 +187,7 @@ typedef enum IRCompatibilityFlags
     IRCompatibilityFlagTextureMinLODClamp     = (1 << 2),
     IRCompatibilityFlagSamplerLODBias         = (1 << 3),
     IRCompatibilityFlagPositionInvariance     = (1 << 4),
+    IRCompatibilityFlagSampleNanToZero        = (1 << 5),
     
 } IRCompatibilityFlags;
 
@@ -229,7 +237,7 @@ typedef struct IRDescriptorRange1
 typedef struct IRRootDescriptorTable1
 {
     uint32_t NumDescriptorRanges;
-    const IRDescriptorRange1* pDescriptorRanges;
+    IRDescriptorRange1* pDescriptorRanges;
 } IRRootDescriptorTable1;
 
 typedef struct IRRootDescriptor1
@@ -254,9 +262,9 @@ typedef struct IRRootParameter1
 typedef struct IRRootSignatureDescriptor1
 {
     uint32_t NumParameters;
-    const IRRootParameter1* pParameters;
+    IRRootParameter1* pParameters;
     uint32_t NumStaticSamplers;
-    const IRStaticSamplerDescriptor* pStaticSamplers;
+    IRStaticSamplerDescriptor* pStaticSamplers;
     IRRootSignatureFlags Flags;
 } IRRootSignatureDescriptor1;
 
@@ -318,6 +326,7 @@ enum IRErrorCode
     IRErrorCodeFailedToSynthesizeIntersectionWrapperFunction,
     IRErrorCodeUnableToVerifyModule,
     IRErrorCodeUnableToLinkModule,
+    IRErrorCodeUnrecognizedDXILHeader,
     IRErrorCodeUnknown
 };
 
@@ -398,6 +407,7 @@ typedef enum IRCompilerValidationFlags
     IRCompilerValidationFlagNone                      = 0,
     IRCompilerValidationFlagValidateRawRootResources  = 1,
     IRCompilerValidationFlagValidateAllResourcesBound = (1 << 1),
+    IRCompilerValidationFlagValidateDXIL              = (1 << 2),
     IRCompilerValidationFlagAll                       = ~0
 } IRCompilerValidationFlags;
 
@@ -423,12 +433,12 @@ void IRCompilerDestroy(IRCompiler* compiler);
 /**
  * Allocate a new object and populate it with the results of compiling and linking IR bytecode.
  * @param compiler compiler to use for the translation process.
- * @param entryPointNames array of entry point names to compile (for ray tracing shaders).
+ * @param entryPointName optional entry point name to compile when converting a library with multiple entry points.
  * @param input input IR object.
  * @param error on return, if the compiler generates any errors, this optional out parameter contains error information. If an error occurs and this parameter is non-NULL, you must free it by calling IRErrorDestroy.
  * @return an IR Object containing MetalIR compiled from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
  */
-IRObject* IRCompilerAllocCompileAndLink(IRCompiler* compiler, const char * const * entryPointNames, size_t entryPointCount, const IRObject* input, IRError** error);
+IRObject* IRCompilerAllocCompileAndLink(IRCompiler* compiler, const char* entryPointName, const IRObject* input, IRError** error);
 
 /**
  * Copy the metallib binary, containing MetalIR bytecode.
@@ -506,10 +516,11 @@ void IRCompilerSetInputTopology(IRCompiler* compiler, IRInputTopology inputTopol
 
 /**
  * Enable geometry and tessellation emulation.
- * @param compiler compiler to enable tessellation emulation
- * @param enable pass in true to enable geometry emulation, false to disable it.
+ * @param compiler compiler to configure with geometry and tessellation emulation.
+ * @param enable pass in true to enable geometry and tessellation emulation, false to disable it.
  */
 void IRCompilerEnableGeometryAndTessellationEmulation(IRCompiler* compiler, bool enable);
+
 
 typedef enum IRDualSourceBlendingConfiguration
 {
@@ -547,6 +558,15 @@ typedef enum IRDepthFeedbackConfiguration
 void IRCompilerSetDepthFeedbackConfiguration(IRCompiler* compiler, IRDepthFeedbackConfiguration configuration);
 
 /**
+ * Set Int compatible render target mask.
+ * Inform the compiler if the underlying render target is int compatible or not. The compiler will inject appropriate bitcast.
+ * @param compiler compiler to configure.
+ * @param intRTMask bitmask for each render target - 0 means that the RT is float compatible - 1 means that the RT is int compatible
+ * This parameter is reset after each compilation.
+ */
+void IRCompilerSetIntRTMask(IRCompiler* compiler, uint8_t intRTMask);
+
+/**
  * Synthesize an intersection wrapper function
  * @param compiler compiler configuration to use. Will inherit hitgroup and RT arguments
  * @param binary pointer to a binary into which to write the synthesized MetalIR.
@@ -567,8 +587,6 @@ typedef enum IRGPUFamily
     IRGPUFamilyApple7  = 1007,
     IRGPUFamilyApple8  = 1008,
     
-    IRGPUFamilyMac2    = 2002,
-    
     IRGPUFamilyMetal3  = 5001
 } IRGPUFamily;
 
@@ -579,6 +597,13 @@ typedef enum IRGPUFamily
  * @param family minimum GPU family supported by code generation.
  */
 void IRCompilerSetMinimumGPUFamily(IRCompiler* compiler, IRGPUFamily family);
+
+/**
+ * Set compiler settings to ignore root signature when needed
+ * @param compiler compiler for which to set the flags.
+ * @param ignoreEmbeddedRootSignature whether embeddedRootSignature should be ignored
+ */
+void IRCompilerIgnoreRootSignature(IRCompiler* compiler, bool ignoreEmbeddedRootSignature);
 
 typedef enum IROperatingSystem
 {
@@ -708,10 +733,10 @@ void IRShaderReflectionCopyFunctionConstants(const IRShaderReflection* reflectio
  */
 void IRShaderReflectionReleaseFunctionConstants(IRFunctionConstant* functionConstants, size_t functionConstantCount);
 
-enum IRReflectionVersion
+typedef enum IRReflectionVersion
 {
     IRReflectionVersion_1_0 = 1
-};
+} IRReflectionVersion;
 
 // Compute stage info
 
@@ -861,6 +886,51 @@ typedef struct IRVersionedDSInfo
     };
 } IRVersionedDSInfo;
 
+// Mesh stage info
+
+typedef enum IRMeshShaderPrimitiveTopology
+{
+    IRMeshShaderPrimitiveTopologyPoint     = 0,
+    IRMeshShaderPrimitiveTopologyLine      = 1,
+    IRMeshShaderPrimitiveTopologyTriangle  = 2,
+    IRMeshShaderPrimitiveTopologyUndefined = 3
+} IRMeshShaderPrimitiveTopology;
+
+typedef struct IRMSInfo_1_0
+{
+    uint32_t max_vertex_output_count;
+    uint32_t max_primitive_output_count;
+    IRMeshShaderPrimitiveTopology primitive_topology;
+    uint32_t max_payload_size_in_bytes;
+    uint32_t num_threads[3];
+} IRMSInfo_1_0;
+
+typedef struct IRVersionedMSInfo
+{
+    IRReflectionVersion version;
+    union
+    {
+        IRMSInfo_1_0 info_1_0;
+    };
+} IRVersionedMSInfo;
+
+// Amplification stage info
+
+typedef struct IRASInfo_1_0
+{
+    uint32_t num_threads[3];
+    uint32_t max_payload_size_in_bytes;
+} IRASInfo_1_0;
+
+typedef struct IRVersionedASInfo
+{
+    IRReflectionVersion version;
+    union
+    {
+        IRASInfo_1_0 info_1_0;
+    };
+} IRVersionedASInfo;
+
 /**
  * Copy shader reflection for a compute stage.
  * @param reflection reflection object to query.
@@ -916,6 +986,24 @@ bool IRShaderReflectionCopyHullInfo(const IRShaderReflection* reflection, IRRefl
 bool IRShaderReflectionCopyDomainInfo(const IRShaderReflection* reflection, IRReflectionVersion version, IRVersionedDSInfo* dsinfo);
 
 /**
+ * Copy shader reflection for a mesh shader stage.
+ * @param reflection reflection object to query.
+ * @param version version of the reflection data to obtain.
+ * @param msinfo pointer to a versioned MS Info struct into which to copy the reflection data for the stage.  You must release the contents of this stuct by calling IRShaderReflectionReleaseMeshInfo.
+ * @return true if the reflection object contains domain shader stage reflection information for the specified version.
+ */
+bool IRShaderReflectionCopyMeshInfo(const IRShaderReflection* reflection, IRReflectionVersion version, IRVersionedMSInfo* msinfo);
+
+/**
+ * Copy shader reflection for an amplification shader stage.
+ * @param reflection reflection object to query.
+ * @param version version of the reflection data to obtain.
+ * @param asinfo pointer to a versioned AS Info struct into which to copy the reflection data for the stage.  You must release the contents of this stuct by calling IRShaderReflectionReleaseAmplificationInfo.
+ * @return true if the reflection object contains domain shader stage reflection information for the specified version.
+ */
+bool IRShaderReflectionCopyAmplificationInfo(const IRShaderReflection* reflection, IRReflectionVersion version, IRVersionedASInfo* asinfo);
+
+/**
  * Release versioned compute information.
  * @param csinfo pointer to the compute shader reflection information to release.
  * @return false if the csinfo version is an unrecognized version or the csinfo pointer is null.
@@ -956,6 +1044,20 @@ bool IRShaderReflectionReleaseHullInfo(IRVersionedHSInfo* hsinfo);
  * @return false if the dsinfo version is an unrecognized version or the dsinfo pointer is null.
  */
 bool IRShaderReflectionReleaseDomainInfo(IRVersionedDSInfo* dsinfo);
+
+/**
+ * Release versioned mesh stage information.
+ * @param msinfo pointer to the mesh shader reflection information to release.
+ * @return false if the msinfo version is an unrecognized version or the msinfo pointer is null.
+ */
+bool IRShaderReflectionReleaseMeshInfo(IRVersionedMSInfo* msinfo);
+
+/**
+ * Release versioned amplification stage information.
+ * @param asinfo pointer to the amplification shader reflection information to release.
+ * @return false if the asinfo version is an unrecognized version or the asinfo pointer is null.
+ */
+bool IRShaderReflectionReleaseAmplificationInfo(IRVersionedASInfo* asinfo);
 
 /**
  * Represents a shader resource location from reflection data.
@@ -1002,9 +1104,15 @@ void IRRootSignatureGetResourceLocations(const IRRootSignature* rootSignature, I
 /**
  * Serialize reflection information into JSON.
  * @param reflection reflection object.
- * @return null-terminated string containing JSON. You are responsible for freeing this string.
+ * @return null-terminated string containing JSON. You need to release this string by calling IRShaderReflectionFreeString.
  */
-const char* IRShaderReflectionSerialize(IRShaderReflection* reflection);
+const char* IRShaderReflectionAllocStringAndSerialize(IRShaderReflection* reflection);
+
+/**
+ * Release a string allocated by IRShaderReflectionAllocStringAndSerialize.
+ * @param serialized string to release.
+ */
+void IRShaderReflectionFreeString(const char* serialized);
 
 /**
  * Deserialize a JSON string into a reflection object.
@@ -1012,6 +1120,27 @@ const char* IRShaderReflectionSerialize(IRShaderReflection* reflection);
  * @param reflection reflection object into which to deserialize.
  */
 void IRShaderReflectionDeserialize(const char* blob, IRShaderReflection* reflection);
+
+/**
+ * Serialize a root signature descriptor into a string representation.
+ * @param rootSignatureDescriptor root signature descriptor to serialize.
+ * @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString.
+ */
+const char* IRVersionedRootSignatureDescriptorAllocStringAndSerialize(IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+
+/**
+ * Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.
+ * @param serialized string to release.
+ */
+void IRVersionedRootSignatureDescriptorFreeString(const char* serialized);
+
+/**
+ * Deserialized a string representation of a root signature into a root signature object.
+ * @param serialized a string representation of a root signature.
+ * @param rootSignatureDescriptor root signature object into which to deserialize the root signature.
+ * @return true if deserialization is successful, false otherwise.
+ */
+bool IRVersionedRootSignatureDescriptorDeserialize(const char* serialized, IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
 
 #ifdef __cplusplus
 }
