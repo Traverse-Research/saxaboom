@@ -55,6 +55,8 @@ struct IRCompilerFn<'lib> {
     set_validation_flags: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_vertex_render_target_index_id: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_vertex_viewport_index_id: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    set_int_rt_mask: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    ignore_root_signature: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
 }
 
 #[repr(u32)]
@@ -699,6 +701,8 @@ impl<'lib> IRCompiler<'lib> {
                 set_vertex_render_target_index_id: lib
                     .get(b"IRCompilerSetVertexRenderTargetIndexID")?,
                 set_vertex_viewport_index_id: lib.get(b"IRCompilerSetVertexViewportIndexID")?,
+                set_int_rt_mask: lib.get(b"IRCompilerSetIntRTMask")?,
+                ignore_root_signature: lib.get(b"IRCompilerIgnoreRootSignature")?,
             };
 
             let me = (funcs.create)();
