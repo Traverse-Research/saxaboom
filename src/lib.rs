@@ -14,6 +14,19 @@ pub enum IRReflectionVersion {
     IRReflectionVersion_1_0 = 1,
 }
 
+#[repr(i32)]
+pub enum IRRaytracingPipelineFlags {
+    IRRaytracingPipelineFlagNone = 0,
+    IRRaytracingPipelineFlagSkipTriangles = 0x100,
+    IRRaytracingPipelineFlagSkipProceduralPrimitives = 0x200,
+}
+
+#[repr(i32)]
+pub enum IRHitGroupType {
+    IRHitGroupTypeTriangles = 0,
+    IRHitGroupTypeProceduralPrimitive = 1,
+}
+
 #[derive(Debug)]
 struct IRCompilerFn<'lib> {
     alloc_compile_and_link: libloading::Symbol<
@@ -35,7 +48,25 @@ struct IRCompilerFn<'lib> {
         'lib,
         unsafe extern "C" fn(*mut IRCompilerOpaque, *const IRRootSignatureOpaque),
     >,
-
+    set_hitgroup_type:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque, IRHitGroupType) -> ()>,
+    set_ray_tracing_pipeline_arguments: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(
+            *mut IRCompilerOpaque,
+            u32,
+            IRRaytracingPipelineFlags,
+            u64,
+            u64,
+            u64,
+            u64,
+            ::std::os::raw::c_int,
+        ) -> (),
+    >,
+    synthesize_indirect_intersection_function: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(*mut IRCompilerOpaque, *mut IRMetalLibBinaryOpaque) -> (),
+    >,
     // todo
     set_depth_feedback_configuration: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_dual_source_blending_configuration: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
@@ -247,6 +278,13 @@ struct IRObjectFn<'lib> {
     >,
     get_type: libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRObjectOpaque) -> IRObjectType>,
     serialize: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
+    gather_raytracing_intrinsics: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(
+            input: *mut IRObjectOpaque,
+            entryPoint: *const ::std::os::raw::c_char,
+        ) -> u64,
+    >,
 }
 
 pub struct IRObject<'lib> {
@@ -269,6 +307,7 @@ impl<'lib> IRObject<'lib> {
             let funcs = IRObjectFn {
                 create_from_dxil: lib.get(b"IRObjectCreateFromDXIL")?,
                 destroy: lib.get(b"IRObjectDestroy")?,
+                gather_raytracing_intrinsics: lib.get(b"IRObjectGatherRaytracingIntrinsics")?,
                 get_metal_ir_shader_stage: lib.get(b"IRObjectGetMetalIRShaderStage")?,
                 get_metal_lib_binary: lib.get(b"IRObjectGetMetalLibBinary")?,
                 get_reflection: lib.get(b"IRObjectGetReflection")?,
@@ -283,6 +322,12 @@ impl<'lib> IRObject<'lib> {
             );
 
             Ok(Self { funcs, me })
+        }
+    }
+
+    pub fn gather_raytracing_intrinsics(&self, entry_point: &str) -> u64 {
+        unsafe {
+            (self.funcs.gather_raytracing_intrinsics)(self.me, entry_point.as_ptr() as *const i8)
         }
     }
 
@@ -686,10 +731,13 @@ impl<'lib> IRCompiler<'lib> {
                 set_global_root_signature: lib.get(b"IRCompilerSetGlobalRootSignature")?,
                 set_has_geometry_shader: lib.get(b"IRCompilerSetHasGeometryShader")?,
                 set_hitgroup_arguments: lib.get(b"IRCompilerSetHitgroupArguments")?,
+                set_hitgroup_type: lib.get(b"IRCompilerSetHitgroupType")?,
                 set_input_topology: lib.get(b"IRCompilerSetInputTopology")?,
                 set_local_root_signature: lib.get(b"IRCompilerSetLocalRootSignature")?,
                 set_minimum_deployment_target: lib.get(b"IRCompilerSetMinimumDeploymentTarget")?,
                 set_minimum_gpu_family: lib.get(b"IRCompilerSetMinimumGPUFamily")?,
+                set_ray_tracing_pipeline_arguments: lib
+                    .get(b"IRCompilerSetRayTracingPipelineArguments")?,
                 set_shared_rt_arguments: lib.get(b"IRCompilerSetSharedRTArguments")?,
                 set_stage_in_generation_mode: lib.get(b"IRCompilerSetStageInGenerationMode")?,
                 set_stream_out_enabled: lib.get(b"IRCompilerSetStreamOutEnabled")?,
@@ -703,6 +751,8 @@ impl<'lib> IRCompiler<'lib> {
                 set_vertex_viewport_index_id: lib.get(b"IRCompilerSetVertexViewportIndexID")?,
                 set_int_rt_mask: lib.get(b"IRCompilerSetIntRTMask")?,
                 ignore_root_signature: lib.get(b"IRCompilerIgnoreRootSignature")?,
+                synthesize_indirect_intersection_function: lib
+                    .get(b"IRMetalLibSynthesizeIndirectIntersectionFunction")?,
             };
 
             let me = (funcs.create)();
@@ -714,6 +764,45 @@ impl<'lib> IRCompiler<'lib> {
     pub fn set_global_root_signature(&mut self, root_signature: &IRRootSignature) {
         unsafe {
             (self.funcs.set_global_root_signature)(self.me, root_signature.me);
+        }
+    }
+
+    pub fn set_ray_tracing_pipeline_arguments(
+        &mut self,
+        max_attribute_size_in_bytes: u32,
+        raytracing_pipeline_flags: IRRaytracingPipelineFlags,
+        chs: u64,
+        miss: u64,
+        any_hit: u64,
+        callable_args: u64,
+        max_recursive_depth: i32,
+    ) {
+        unsafe {
+            (self.funcs.set_ray_tracing_pipeline_arguments)(
+                self.me,
+                max_attribute_size_in_bytes,
+                raytracing_pipeline_flags,
+                chs,
+                miss,
+                any_hit,
+                callable_args,
+                max_recursive_depth,
+            );
+        }
+    }
+
+    pub fn set_hitgroup_type(&mut self, hit_group_type: IRHitGroupType) {
+        unsafe {
+            (self.funcs.set_hitgroup_type)(self.me, hit_group_type);
+        }
+    }
+
+    pub fn synthesize_indirect_intersection_function(
+        &mut self,
+        target_metallib: &mut IRMetalLibBinary,
+    ) {
+        unsafe {
+            (self.funcs.synthesize_indirect_intersection_function)(self.me, target_metallib.me)
         }
     }
 
