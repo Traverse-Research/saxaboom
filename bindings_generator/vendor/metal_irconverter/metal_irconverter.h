@@ -310,6 +310,21 @@ typedef struct IRVersionedInputLayoutDescriptor
     };
 } IRVersionedInputLayoutDescriptor;
 
+// From d3d12.h
+typedef enum IRHitGroupType
+{
+    IRHitGroupTypeTriangles           = 0,
+    IRHitGroupTypeProceduralPrimitive = 1
+} IRHitGroupType;
+
+// From d3d12.h
+typedef enum IRRaytracingPipelineFlags
+{
+    IRRaytracingPipelineFlagNone                     = 0,
+    IRRaytracingPipelineFlagSkipTriangles            = 0x100,
+    IRRaytracingPipelineFlagSkipProceduralPrimitives = 0x200
+} IRRaytracingPipelineFlags;
+
 enum IRErrorCode
 {
     IRErrorCodeNoError,
@@ -323,10 +338,11 @@ enum IRErrorCode
     IRErrorCodeCompilationError,
     IRErrorCodeFailedToSynthesizeStageInFunction,
     IRErrorCodeFailedToSynthesizeStreamOutFunction,
-    IRErrorCodeFailedToSynthesizeIntersectionWrapperFunction,
+    IRErrorCodeFailedToSynthesizeIndirectIntersectionFunction,
     IRErrorCodeUnableToVerifyModule,
     IRErrorCodeUnableToLinkModule,
     IRErrorCodeUnrecognizedDXILHeader,
+    IRErrorCodeInvalidRaytracingAttribute,
     IRErrorCodeUnknown
 };
 
@@ -432,6 +448,8 @@ void IRCompilerDestroy(IRCompiler* compiler);
 
 /**
  * Allocate a new object and populate it with the results of compiling and linking IR bytecode.
+ * @note Prior calls to `IRCompilerSetHitgroupType`, `IRCompilerSetRayTracingPipelineArguments`, `IRCompilerSetGlobalRootSignature`, `IRCompilerSetLocalRootSignature` influence the bytecode this function produces.
+ * @note you need to call `IRCompilerSetRayTracingPipelineArguments` before compiling ray tracing shaders.
  * @param compiler compiler to use for the translation process.
  * @param entryPointName optional entry point name to compile when converting a library with multiple entry points.
  * @param input input IR object.
@@ -439,6 +457,24 @@ void IRCompilerDestroy(IRCompiler* compiler);
  * @return an IR Object containing MetalIR compiled from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
  */
 IRObject* IRCompilerAllocCompileAndLink(IRCompiler* compiler, const char* entryPointName, const IRObject* input, IRError** error);
+
+/**
+ * Allocate a new object and populate with the results of combining, compiling, and linking IR bytecode of an intersection and an any-hit function.
+ * This function allows representing the interactions between intersection and any-hit shaders on Metal, where these functions are fused together.
+ * @warning Ensure you call `IRCompilerSetHitgroupType` prior to this function to specify the intersection type.
+ * @note One of parameters `intersectionFunctionBytecode` and `anyHitFunctionBytecode` needs to be non-NULL.
+ * @note If both parameters are non-NULL, this function uses the `anyHitfunctionBytecode` the latter references.
+ * @note Prior calls to `IRCompilerSetHitgroupType`, `IRCompilerSetRayTracingPipelineArguments`, `IRCompilerSetGlobalRootSignature`, `IRCompilerSetLocalRootSignature` influence the bytecode this function produces.
+ * @note you need to call `IRCompilerSetRayTracingPipelineArguments` before compiling ray tracing shaders.
+ * @param compiler compiler to use for the translation process.
+ * @param intersectionFunctionEntryPointName optional entry point name corresponding to the intersection function.
+ * @param intersectionFunctionBytecode optional input bytecode that provides the intersection function bytecode.
+ * @param anyHitFunctionEntryPointName optional entry point name corresponding to the any-hit function.
+ * @param anyHitFunctionBytecode optional input bytecode that provides the any-hit function
+ * @param error on return, if the compiler generates any errors, this optional out parameter contains error information. If an error occurs and this parameter is non-NULL, you must free it by calling IRErrorDestroy.
+ * @return an IR Object containing MetalIR compiled from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
+ */
+IRObject* IRCompilerAllocCombineCompileAndLink(IRCompiler* compiler, const char* intersectionFunctionEntryPointName, const IRObject* intersectionFunctionBytecode, const char* anyHitFunctionEntryPointName, const IRObject* anyHitFunctionBytecode, IRError** error);
 
 /**
  * Copy the metallib binary, containing MetalIR bytecode.
@@ -493,6 +529,50 @@ bool IRObjectGetReflection(const IRObject* obj, IRShaderStage stage, IRShaderRef
  * Pass in NULL (the default) to have the compiler generate a linear resource layout instead. If you provide a non-NULL rootSignature, you must ensure it is not destroyed before the compiler.
  */
 void IRCompilerSetGlobalRootSignature(IRCompiler* compiler, const IRRootSignature* rootSignature);
+
+/**
+ * Configure a compiler to produce a shader that consumes a local root signature matching a specific layout.
+ * @param compiler compiler to configure.
+ * @param rootSignature If you provide a non-NULL rootSignature, you must ensure it is not destroyed before the compiler.
+ */
+void IRCompilerSetLocalRootSignature(IRCompiler* compiler, const IRRootSignature* rootSignature);
+
+/**
+ * Configure the hit group type for all subsequent shaders a compiler compiles.
+ * @param compiler compiler to configure
+ * @param hitGroupType type of hitgroup the shader expects
+ */
+void IRCompilerSetHitgroupType(IRCompiler* compiler, IRHitGroupType hitGroupType);
+
+#define IRIntrinsicMaskClosestHitAll         0x7FFFFFFF
+#define IRIntrinsicMaskMissShaderAll         0x7FFF
+#define IRIntrinsicMaskCallableShaderAll     0x7FFF
+#define IRIntrinsicMaskAnyHitShaderAll       ((uint64_t)-1)
+#define IRRayTracingUnlimitedRecursionDepth  (-1)
+
+/**
+ * Analyze an input IR and produce a mask representing all ray tracing intrinsics it references.
+ * Use this function to gather all intrinsics for your closest hit, any hit, intersection, and callable shaders and produce optimal hit group arguments.
+ */
+uint64_t IRObjectGatherRaytracingIntrinsics(IRObject* input, const char* entryPoint);
+
+/**
+ * Configure a compiler with upfront information to generate an optimal interface between ray tracing functions.
+ * Calling this function is optional, but when omitted, the compiler needs to assume a worst-case scenario, significantly affecting runtime performance.
+ * Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.
+ * After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.
+ * Specifying a mask and then adding additional shaders to a pipeline that don't conform to it causes undefined behavior.
+ * @param compiler compiler to configure
+ * @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses.
+ * @param raytracingPipelineFlags flags for the ray tracing pipeline your application builds from these shaders.
+ * @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`).
+ * @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`).
+ * @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`).
+ * @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`).
+ * @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.
+ * @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail.
+ */
+void IRCompilerSetRayTracingPipelineArguments(IRCompiler* compiler, uint32_t maxAttributeSizeInBytes, IRRaytracingPipelineFlags raytracingPipelineFlags, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs, int maxRecursiveDepth);
 
 /**
  * Configure compiler compatibility flags.
@@ -567,12 +647,21 @@ void IRCompilerSetDepthFeedbackConfiguration(IRCompiler* compiler, IRDepthFeedba
 void IRCompilerSetIntRTMask(IRCompiler* compiler, uint8_t intRTMask);
 
 /**
- * Synthesize an intersection wrapper function
- * @param compiler compiler configuration to use. Will inherit hitgroup and RT arguments
+ * Synthesize an ray dispatch function that indirectly dispatches ray generation shaders.
+ * @param compiler compiler configuration to use.
  * @param binary pointer to a binary into which to write the synthesized MetalIR.
- * @return true if the stageIn function could be successfully created, false otherwise.
+ * @return true if the intersection function could be successfully synthesized, false otherwise.
  */
-bool IRMetalLibSynthesizeIntersectionWrapperFunction(const IRCompiler* compiler, IRMetalLibBinary *binary);
+bool IRMetalLibSynthesizeIndirectRayDispatchFunction(const IRCompiler* compiler, IRMetalLibBinary* binary);
+
+/**
+ * Synthesize a Metal ray tracing intersection function that calls into a visible function representing
+ * a custom intersection function.
+ * @param compiler compiler configuration to use. Current hit group and ray tracing configuration influences code generation.
+ * @param binary pointer to a binary into which to write the synthesized MetalIR.
+ * @return true if the intersection function could be successfully synthesized, false otherwise.
+ */
+bool IRMetalLibSynthesizeIndirectIntersectionFunction(const IRCompiler* compiler, IRMetalLibBinary* binary);
 
 /**
  * Customize the name of the entry point functions generated by a compiler.
@@ -586,6 +675,7 @@ typedef enum IRGPUFamily
     IRGPUFamilyApple6  = 1006,
     IRGPUFamilyApple7  = 1007,
     IRGPUFamilyApple8  = 1008,
+    IRGPUFamilyApple9  = 1009,
     
     IRGPUFamilyMetal3  = 5001
 } IRGPUFamily;
@@ -931,6 +1021,21 @@ typedef struct IRVersionedASInfo
     };
 } IRVersionedASInfo;
 
+typedef struct IRRTInfo_1_0
+{
+    bool is_indirect_intersection_function;
+} IRRTInfo_1_0;
+
+// Ray tracing stage info
+typedef struct IRVersionedRTInfo
+{
+    IRReflectionVersion version;
+    union
+    {
+        IRRTInfo_1_0 info_1_0;
+    };
+} IRVersionedRTInfo;
+
 /**
  * Copy shader reflection for a compute stage.
  * @param reflection reflection object to query.
@@ -1004,6 +1109,15 @@ bool IRShaderReflectionCopyMeshInfo(const IRShaderReflection* reflection, IRRefl
 bool IRShaderReflectionCopyAmplificationInfo(const IRShaderReflection* reflection, IRReflectionVersion version, IRVersionedASInfo* asinfo);
 
 /**
+ * Copy shader reflection for a ray tracing shader stage.
+ * @param reflection reflection object to query.
+ * @param version version of the reflection data to obtain.
+ * @param rtinfo pointer to a versioned RT Info struct into which to copy the reflection data for the stage.  You must release the contents of this struct by calling IRShaderReflectionReleaseRaytracingInfo.
+ * @return true if the reflection object contains reflection for a ray tracing stage for the specified version.
+ */
+bool IRShaderReflectionCopyRaytracingInfo(const IRShaderReflection* reflection, IRReflectionVersion version, IRVersionedRTInfo* rtinfo);
+
+/**
  * Release versioned compute information.
  * @param csinfo pointer to the compute shader reflection information to release.
  * @return false if the csinfo version is an unrecognized version or the csinfo pointer is null.
@@ -1058,6 +1172,13 @@ bool IRShaderReflectionReleaseMeshInfo(IRVersionedMSInfo* msinfo);
  * @return false if the asinfo version is an unrecognized version or the asinfo pointer is null.
  */
 bool IRShaderReflectionReleaseAmplificationInfo(IRVersionedASInfo* asinfo);
+
+/**
+ * Release versioned ray tracing stage information.
+ * @param rtinfo pointer to the ray tracing shader reflection information to release.
+ * @return false if the rtinfo version is an unrecognized version or the rtinfo pointer is null.
+ */
+bool IRShaderReflectionReleaseRaytracingInfo(IRVersionedRTInfo* rtinfo);
 
 /**
  * Represents a shader resource location from reflection data.
