@@ -691,8 +691,6 @@ impl<'lib> IRRootSignature<'lib> {
 
             let me = (funcs.create_from_descriptor)(desc, &mut error);
 
-            dbg!(error);
-
             Ok(Self { funcs, me })
         }
     }
@@ -814,10 +812,6 @@ impl<'lib> IRCompiler<'lib> {
         let v = unsafe {
             (self.funcs.alloc_compile_and_link)(self.me, entry_point.as_ptr(), input.me, &mut error)
         };
-
-        dbg!(v);
-
-        dbg!(error);
 
         if error.is_null() {
             Ok(IRObject {
