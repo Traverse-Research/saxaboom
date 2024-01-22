@@ -7,7 +7,7 @@ struct IRMetalLibBinaryOpaque;
 struct IRShaderReflectionOpaque;
 struct IRErrorOpaque;
 
-use std::mem::MaybeUninit;
+use std::{ffi::CStr, mem::MaybeUninit};
 
 #[repr(i32)]
 pub enum IRReflectionVersion {
@@ -325,10 +325,8 @@ impl<'lib> IRObject<'lib> {
         }
     }
 
-    pub fn gather_raytracing_intrinsics(&self, entry_point: &str) -> u64 {
-        unsafe {
-            (self.funcs.gather_raytracing_intrinsics)(self.me, entry_point.as_ptr() as *const i8)
-        }
+    pub fn gather_raytracing_intrinsics(&self, entry_point: &CStr) -> u64 {
+        unsafe { (self.funcs.gather_raytracing_intrinsics)(self.me, entry_point.as_ptr().cast()) }
     }
 
     pub fn get_type(&self) -> IRObjectType {
