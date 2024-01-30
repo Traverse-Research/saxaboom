@@ -804,13 +804,18 @@ impl<'lib> IRCompiler<'lib> {
 
     pub fn alloc_compile_and_link(
         &mut self,
-        entry_point: &[u8],
+        entry_point: &CStr,
         input: &'lib IRObject,
     ) -> Result<IRObject<'lib>, Box<dyn std::error::Error>> {
         let mut error: *mut IRErrorOpaque = unsafe { std::ptr::null_mut::<IRErrorOpaque>().add(0) };
 
         let v = unsafe {
-            (self.funcs.alloc_compile_and_link)(self.me, entry_point.as_ptr(), input.me, &mut error)
+            (self.funcs.alloc_compile_and_link)(
+                self.me,
+                entry_point.to_bytes().as_ptr(),
+                input.me,
+                &mut error,
+            )
         };
 
         if error.is_null() {
