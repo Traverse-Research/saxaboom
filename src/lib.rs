@@ -1,4 +1,13 @@
 #![doc = include_str!("../README.md")]
+use std::{ffi::CStr, mem::MaybeUninit};
+
+#[allow(
+    non_upper_case_globals,
+    dead_code,
+    non_camel_case_types,
+    non_snake_case
+)]
+mod bindings;
 
 struct IRCompilerOpaque;
 struct IRObjectOpaque;
@@ -7,25 +16,7 @@ struct IRMetalLibBinaryOpaque;
 struct IRShaderReflectionOpaque;
 struct IRErrorOpaque;
 
-use std::{ffi::CStr, mem::MaybeUninit};
-
-#[repr(i32)]
-pub enum IRReflectionVersion {
-    IRReflectionVersion_1_0 = 1,
-}
-
-#[repr(i32)]
-pub enum IRRaytracingPipelineFlags {
-    IRRaytracingPipelineFlagNone = 0,
-    IRRaytracingPipelineFlagSkipTriangles = 0x100,
-    IRRaytracingPipelineFlagSkipProceduralPrimitives = 0x200,
-}
-
-#[repr(i32)]
-pub enum IRHitGroupType {
-    IRHitGroupTypeTriangles = 0,
-    IRHitGroupTypeProceduralPrimitive = 1,
-}
+pub use bindings::{IRHitGroupType, IRRaytracingPipelineFlags, IRReflectionVersion};
 
 #[derive(Debug)]
 struct IRCompilerFn<'lib> {
