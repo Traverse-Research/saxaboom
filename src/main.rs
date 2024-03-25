@@ -1,10 +1,11 @@
+use std::ffi::CStr;
+
 use saxaboom::{
     IRComparisonFunction, IRCompiler, IRFilter, IRMetalLibBinary, IRObject, IRReflectionVersion,
-    IRRootConstants, IRRootDescriptor1, IRRootParameter1, IRRootParameter1_u, IRRootParameterType,
-    IRRootSignature, IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion,
-    IRShaderReflection, IRShaderStage, IRShaderVisibility, IRStaticBorderColor,
-    IRStaticSamplerDescriptor, IRTextureAddressMode, IRVersionedRootSignatureDescriptor,
-    IRVersionedRootSignatureDescriptor_u,
+    IRRootConstants, IRRootParameter1, IRRootParameter1_u, IRRootParameterType, IRRootSignature,
+    IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion, IRShaderReflection,
+    IRShaderStage, IRShaderVisibility, IRStaticBorderColor, IRStaticSamplerDescriptor,
+    IRTextureAddressMode, IRVersionedRootSignatureDescriptor, IRVersionedRootSignatureDescriptor_u,
 };
 
 fn create_static_sampler(
@@ -16,19 +17,19 @@ fn create_static_sampler(
     let max_anisotropy = anisotropy.unwrap_or(1);
 
     IRStaticSamplerDescriptor {
-        filter: min_mag_mip_mode,
-        address_u: address_mode,
-        address_v: address_mode,
-        address_w: address_mode,
-        mip_lod_bias: 0.0,
-        max_anisotropy: max_anisotropy,
-        comparison_func: IRComparisonFunction::IRComparisonFunctionNever,
-        min_lod: 0.0,
-        max_lod: 100000.0,
-        shader_register: index,
-        register_space: 0,
-        shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
-        border_color: IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
+        Filter: min_mag_mip_mode,
+        AddressU: address_mode,
+        AddressV: address_mode,
+        AddressW: address_mode,
+        MipLODBias: 0.0,
+        MaxAnisotropy: max_anisotropy,
+        ComparisonFunc: IRComparisonFunction::IRComparisonFunctionNever,
+        MinLOD: 0.0,
+        MaxLOD: 100000.0,
+        ShaderRegister: index,
+        RegisterSpace: 0,
+        ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
+        BorderColor: IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
     }
 }
 
@@ -40,25 +41,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let parameters = {
             let push_constants = IRRootParameter1 {
-                parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
-                shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
-                u: IRRootParameter1_u {
-                    constants: IRRootConstants {
-                        register_space: 0 as u32,
-                        shader_register: 0,
-                        num32_bit_values: 4, // debug has 6
+                ParameterType: IRRootParameterType::IRRootParameterType32BitConstants,
+                ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
+                __bindgen_anon_1: IRRootParameter1_u {
+                    Constants: IRRootConstants {
+                        RegisterSpace: 0 as u32,
+                        ShaderRegister: 0,
+                        Num32BitValues: 4, // debug has 6
                     },
                 },
             };
 
             let indirect_identifier = IRRootParameter1 {
-                parameter_type: IRRootParameterType::IRRootParameterType32BitConstants,
-                shader_visibility: IRShaderVisibility::IRShaderVisibilityAll,
-                u: IRRootParameter1_u {
-                    constants: IRRootConstants {
-                        register_space: 1 as u32,
-                        shader_register: 0,
-                        num32_bit_values: 1,
+                ParameterType: IRRootParameterType::IRRootParameterType32BitConstants,
+                ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
+                __bindgen_anon_1: IRRootParameter1_u {
+                    Constants: IRRootConstants {
+                        RegisterSpace: 1 as u32,
+                        ShaderRegister: 0,
+                        Num32BitValues: 1,
                     },
                 },
             };
@@ -112,16 +113,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ];
 
         let desc_1_1 = IRRootSignatureDescriptor1 {
-            flags: IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
-            num_parameters: parameters.len() as u32,
-            p_parameters: parameters.as_ptr(),
-            num_static_samplers: static_samplers.len() as u32,
-            p_static_samplers: static_samplers.as_ptr(),
+            Flags: IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
+            NumParameters: parameters.len() as u32,
+            pParameters: parameters.as_ptr(),
+            NumStaticSamplers: static_samplers.len() as u32,
+            pStaticSamplers: static_samplers.as_ptr(),
         };
 
         let desc = IRVersionedRootSignatureDescriptor {
             version: IRRootSignatureVersion::IRRootSignatureVersion_1_1,
-            u: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
+            __bindgen_anon_1: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
         };
 
         let root_sig = IRRootSignature::create_from_descriptor(&lib, &desc)?;
@@ -135,7 +136,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let obj = IRObject::create_from_dxil(&lib, egui_update)?;
         let mut c = IRCompiler::new(&lib)?;
         c.set_global_root_signature(&root_sig);
-        let mtllib = c.alloc_compile_and_link(b"main\0", &obj)?;
+        let mtllib =
+            c.alloc_compile_and_link(CStr::from_bytes_with_nul_unchecked(b"main\0"), &obj)?;
         dbg!(mtllib.get_type());
         dbg!(mtllib.get_metal_ir_shader_stage());
         mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
@@ -146,7 +148,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mtl_reflection
                 .get_compute_info(IRReflectionVersion::IRReflectionVersion_1_0)
                 .unwrap()
-                .u
+                .__bindgen_anon_1
                 .info_1_0
         );
 
