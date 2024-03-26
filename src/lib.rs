@@ -1,5 +1,8 @@
 #![doc = include_str!("../README.md")]
-use std::{ffi::CStr, mem::MaybeUninit};
+use std::{
+    ffi::{CStr, CString},
+    mem::MaybeUninit,
+};
 
 #[allow(
     non_upper_case_globals,
@@ -55,6 +58,10 @@ struct IRCompilerFn<'lib> {
         ) -> (),
     >,
     synthesize_indirect_intersection_function: libloading::Symbol<
+        'lib,
+        unsafe extern "C" fn(*mut IRCompilerOpaque, *mut IRMetalLibBinaryOpaque) -> (),
+    >,
+    synthesize_indirect_ray_dispatch_function: libloading::Symbol<
         'lib,
         unsafe extern "C" fn(*mut IRCompilerOpaque, *mut IRMetalLibBinaryOpaque) -> (),
     >,
@@ -740,6 +747,8 @@ impl<'lib> IRCompiler<'lib> {
                 ignore_root_signature: lib.get(b"IRCompilerIgnoreRootSignature")?,
                 synthesize_indirect_intersection_function: lib
                     .get(b"IRMetalLibSynthesizeIndirectIntersectionFunction")?,
+                synthesize_indirect_ray_dispatch_function: lib
+                    .get(b"IRMetalLibSynthesizeIndirectRayDispatchFunction")?,
             };
 
             let me = (funcs.create)();
@@ -790,6 +799,15 @@ impl<'lib> IRCompiler<'lib> {
     ) {
         unsafe {
             (self.funcs.synthesize_indirect_intersection_function)(self.me, target_metallib.me)
+        }
+    }
+
+    pub fn synthesize_indirect_ray_dispatch_function(
+        &mut self,
+        target_metallib: &mut IRMetalLibBinary,
+    ) {
+        unsafe {
+            (self.funcs.synthesize_indirect_ray_dispatch_function)(self.me, target_metallib.me)
         }
     }
 
