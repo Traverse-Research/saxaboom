@@ -38,6 +38,8 @@ struct IRCompilerFn<'lib> {
         libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque, bool) -> u32>,
     set_compatibility_flags:
         libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque, u32) -> ()>,
+    set_entry_point_name:
+        libloading::Symbol<'lib, unsafe extern "C" fn(*mut IRCompilerOpaque, *const i8) -> ()>,
     set_global_root_signature: libloading::Symbol<
         'lib,
         unsafe extern "C" fn(*mut IRCompilerOpaque, *const IRRootSignatureOpaque),
@@ -68,7 +70,6 @@ struct IRCompilerFn<'lib> {
     // todo
     set_depth_feedback_configuration: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_dual_source_blending_configuration: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
-    set_entry_point_name: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_has_geometry_shader: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_hitgroup_arguments: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
     set_input_topology: libloading::Symbol<'lib, unsafe extern "C" fn() -> ()>,
@@ -755,6 +756,10 @@ impl<'lib> IRCompiler<'lib> {
 
             Ok(Self { funcs, me })
         }
+    }
+
+    pub fn set_entry_point_name(&mut self, new_name: &CStr) {
+        unsafe { (self.funcs.set_entry_point_name)(self.me, new_name.as_ptr()) }
     }
 
     pub fn set_global_root_signature(&mut self, root_signature: &IRRootSignature) {
