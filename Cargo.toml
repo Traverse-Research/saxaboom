@@ -1,13 +1,15 @@
 [package]
 name = "saxaboom"
-version = "0.0.0"
+version = "0.0.0-alpha.1"
 authors = ["Traverse Research <support@traverseresearch.nl>"]
 edition = "2021"
 license = "Apache-2.0"
 homepage = "https://traverseresearch.nl"
 repository = "https://github.com/Traverse-Research/saxaboom"
-description = "Binding library for metal_irconverter"
+description = "Binding library for Metal shader converter"
 include = ["src", "LICENSE", "CONTRIBUTING.md"]
+categories = ["graphics", "compilers"]
+keywords = ["metal", "macos", "ios", "shader", "ir"]
 
 [workspace]
 members = [

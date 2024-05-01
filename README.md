@@ -9,7 +9,9 @@
 
 [![Banner](banner.png)](https://traverseresearch.nl)
 
-Small helper library around the `metal_irconverter` to create metal shader libraries from DXIL files.
+Small helper library around [Metal shader converter] to create metal shader libraries from DXIL files.
+
+[Metal shader converter]: https://developer.apple.com/metal/shader-converter/
 
 ## Usage
 
