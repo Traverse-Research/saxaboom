@@ -21,7 +21,7 @@ fn create_static_sampler(
         address_v: address_mode,
         address_w: address_mode,
         mip_lod_bias: 0.0,
-        max_anisotropy: max_anisotropy,
+        max_anisotropy,
         comparison_func: IRComparisonFunction::IRComparisonFunctionNever,
         min_lod: 0.0,
         max_lod: 100000.0,
