@@ -2,12 +2,12 @@ use std::path::Path;
 
 fn main() {
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let header = crate_root.join("wrapper.h").to_str().unwrap().to_string();
+    let header = crate_root.join("wrapper.h");
     let out_file = crate_root.join("../src/bindings.rs");
     let include_dir = crate_root.join("vendor");
 
     bindgen::Builder::default()
-        .header(header)
+        .header(header.to_str().unwrap())
         .clang_args(&[
             format!("-I{}", include_dir.to_str().unwrap()).as_str(),
             "-Wno-microsoft-enum-forward-reference",
