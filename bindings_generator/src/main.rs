@@ -8,7 +8,7 @@ fn main() {
     bindgen::Builder::default()
         .header(header)
         .clang_args(&[
-            "-I./vendor/",
+            "-I./bindings_generator/vendor/",
             "-Wno-microsoft-enum-forward-reference",
             "-fretain-comments-from-system-headers",
         ])
