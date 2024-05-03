@@ -2,6 +2,7 @@
 use std::{
     ffi::{CStr, OsStr},
     mem::MaybeUninit,
+    ptr::NonNull,
     sync::Arc,
 };
 
@@ -15,7 +16,6 @@ use std::{
 )]
 mod bindings;
 
-use bindings::IRError;
 pub use bindings::{
     IRCSInfo_1_0, IRComparisonFunction, IRDescriptorRangeType, IRFilter, IRHitGroupType,
     IRObjectType, IRRaytracingPipelineFlags, IRReflectionVersion, IRResourceLocation,
@@ -26,6 +26,8 @@ pub use bindings::{
     IRVersionedCSInfo, IRVersionedRootSignatureDescriptor,
     IRVersionedRootSignatureDescriptor__bindgen_ty_1 as IRVersionedRootSignatureDescriptor_u,
 };
+use bindings::{IRError, IRErrorCode};
+use thiserror::Error;
 
 pub struct IRShaderReflection {
     me: *mut bindings::IRShaderReflection,
@@ -39,31 +41,32 @@ impl Drop for IRShaderReflection {
 }
 
 impl IRShaderReflection {
-    pub fn new(compiler: &IRCompiler) -> Result<IRShaderReflection, Box<dyn std::error::Error>> {
+    pub fn new(compiler: &IRCompiler) -> IRShaderReflection {
         unsafe {
             let me = compiler.funcs.IRShaderReflectionCreate();
-            Ok(Self {
+            Self {
                 me,
                 funcs: compiler.funcs.clone(),
-            })
+            }
         }
     }
 
-    pub fn get_compute_info(
-        &self,
-        version: IRReflectionVersion,
-    ) -> Result<IRVersionedCSInfo, Box<dyn std::error::Error>> {
+    pub fn get_compute_info(&self, version: IRReflectionVersion) -> Option<IRVersionedCSInfo> {
         let mut info = MaybeUninit::uninit();
         if unsafe {
             self.funcs
                 .IRShaderReflectionCopyComputeInfo(self.me, version, info.as_mut_ptr())
         } {
-            Ok(unsafe { info.assume_init() })
+            Some(unsafe { info.assume_init() })
         } else {
-            panic!("Test me");
+            None
         }
     }
 }
+
+#[derive(Error, Debug)]
+#[error("Failed to get MetalLib bytecode from IRObject")]
+pub struct MetalLibNoBytecodeFoundError;
 
 pub struct IRObject {
     me: *mut bindings::IRObject,
@@ -77,33 +80,31 @@ impl Drop for IRObject {
 }
 
 impl IRObject {
-    pub fn create_from_dxil(
-        compiler: &IRCompiler,
-        bytecode: &[u8],
-    ) -> Result<IRObject, Box<dyn std::error::Error>> {
+    pub fn create_from_dxil(compiler: &IRCompiler, bytecode: &[u8]) -> IRObject {
         unsafe {
-            let me = compiler.funcs.IRObjectCreateFromDXIL(
+            let me = NonNull::new(compiler.funcs.IRObjectCreateFromDXIL(
                 bytecode.as_ptr(),
                 bytecode.len(),
                 bindings::IRBytecodeOwnership::IRBytecodeOwnershipNone,
-            );
+            ))
+            .expect("Failed to IRObject from DXIL");
 
-            Ok(Self {
+            Self {
+                me: me.as_ptr(),
                 funcs: compiler.funcs.clone(),
-                me,
-            })
+            }
         }
     }
 
     pub fn gather_raytracing_intrinsics(&self, entry_point: &CStr) -> u64 {
         unsafe {
             self.funcs
-                .IRObjectGatherRaytracingIntrinsics(self.me, entry_point.as_ptr().cast())
+                .IRObjectGatherRaytracingIntrinsics(self.me, entry_point.as_ptr())
         }
     }
 
     pub fn get_type(&self) -> IRObjectType {
-        unsafe { self.funcs.IRObjectGetType(self.me.cast_const()) }
+        unsafe { self.funcs.IRObjectGetType(self.me) }
     }
 
     pub fn get_metal_ir_shader_stage(&self) -> IRShaderStage {
@@ -112,23 +113,33 @@ impl IRObject {
 
     pub fn get_metal_lib_binary(
         &self,
+        compiler: &IRCompiler,
         shader_stage: IRShaderStage,
-        dest_lib: &mut IRMetalLibBinary,
-    ) -> bool {
-        unsafe {
+    ) -> Result<IRMetalLibBinary, MetalLibNoBytecodeFoundError> {
+        let mtl_lib = IRMetalLibBinary::new(compiler);
+        if unsafe {
             self.funcs
-                .IRObjectGetMetalLibBinary(self.me, shader_stage, dest_lib.me)
+                .IRObjectGetMetalLibBinary(self.me, shader_stage, mtl_lib.me)
+        } {
+            Ok(mtl_lib)
+        } else {
+            Err(MetalLibNoBytecodeFoundError)
         }
     }
 
     pub fn get_reflection(
         &self,
+        compiler: &IRCompiler,
         shader_stage: IRShaderStage,
-        reflection: &mut IRShaderReflection,
-    ) -> bool {
-        unsafe {
+    ) -> Option<IRShaderReflection> {
+        let reflection = IRShaderReflection::new(compiler);
+        if unsafe {
             self.funcs
                 .IRObjectGetReflection(self.me, shader_stage, reflection.me)
+        } {
+            Some(reflection)
+        } else {
+            None
         }
     }
 }
@@ -145,23 +156,25 @@ impl Drop for IRMetalLibBinary {
 }
 
 impl IRMetalLibBinary {
-    pub fn new(compiler: &IRCompiler) -> Result<IRMetalLibBinary, Box<dyn std::error::Error>> {
+    pub fn new(compiler: &IRCompiler) -> IRMetalLibBinary {
         unsafe {
-            let me = compiler.funcs.IRMetalLibBinaryCreate();
-            Ok(Self {
+            let me = NonNull::new(compiler.funcs.IRMetalLibBinaryCreate())
+                .expect("Failed to create empty IRMetalLibBinary");
+            Self {
+                me: me.as_ptr(),
                 funcs: compiler.funcs.clone(),
-                me,
-            })
+            }
         }
     }
 
     pub fn get_byte_code(&self) -> Vec<u8> {
         let size_in_bytes = unsafe { self.funcs.IRMetalLibGetBytecodeSize(self.me) };
         let mut bytes = vec![0u8; size_in_bytes];
-        let _written = unsafe {
+        let written = unsafe {
             self.funcs
                 .IRMetalLibGetBytecode(self.me, bytes.as_mut_ptr())
         };
+        assert_eq!(written, size_in_bytes);
         bytes
     }
 }
@@ -177,30 +190,49 @@ impl Drop for IRRootSignature {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum RootSignatureError {
+    #[error("Failed to create IRRootSignature: {0:?}")]
+    CreateError(IRErrorCode),
+    #[error("Failed to create IRRootSignature")]
+    Unknown,
+}
+
 impl IRRootSignature {
     pub fn create_from_descriptor(
         compiler: &IRCompiler,
         desc: &IRVersionedRootSignatureDescriptor,
-    ) -> Result<IRRootSignature, Box<dyn std::error::Error>> {
-        unsafe {
-            let mut error: *mut IRError = std::ptr::null_mut::<IRError>();
+    ) -> Result<IRRootSignature, RootSignatureError> {
+        let mut error = std::ptr::null_mut();
 
-            let me = compiler
+        let me = unsafe {
+            compiler
                 .funcs
-                .IRRootSignatureCreateFromDescriptor(desc, &mut error);
+                .IRRootSignatureCreateFromDescriptor(desc, &mut error)
+        };
 
-            Ok(Self {
-                funcs: compiler.funcs.clone(),
-                me,
-            })
+        // If the root signature failed to create
+        if !error.is_null() {
+            // IRErrorCode is #[repr(u32)], so this transmute should be fine
+            unsafe {
+                let code: u32 = compiler.funcs.IRErrorGetCode(error);
+                let code: IRErrorCode = std::mem::transmute(code);
+                compiler.funcs.IRErrorDestroy(error);
+                return Err(RootSignatureError::CreateError(code));
+            }
+        } else if me.is_null() {
+            return Err(RootSignatureError::Unknown);
         }
+
+        Ok(Self {
+            me,
+            funcs: compiler.funcs.clone(),
+        })
     }
 
     pub fn get_resource_locations(&self) -> Vec<IRResourceLocation> {
         unsafe {
-            let n_resources = self
-                .funcs
-                .IRRootSignatureGetResourceCount(self.me as *const _);
+            let n_resources = self.funcs.IRRootSignatureGetResourceCount(self.me);
             let empty_location = IRResourceLocation {
                 resourceType: IRResourceType::IRResourceTypeInvalid,
                 space: 0,
@@ -210,15 +242,16 @@ impl IRRootSignature {
                 resourceName: std::ptr::null(),
             };
             let mut resource_locations = vec![empty_location; n_resources];
-            self.funcs.IRRootSignatureGetResourceLocations(
-                self.me as *const _,
-                resource_locations.as_mut_ptr(),
-            );
+            self.funcs
+                .IRRootSignatureGetResourceLocations(self.me, resource_locations.as_mut_ptr());
             resource_locations
         }
     }
 }
 
+/// [IRCompilerFactory] is used to load the metal_irconverter dynamic library and holds its functions in an Arc.
+/// Since [IRCompiler] is not thread-safe, this struct provides an interface to create [IRCompiler] instances.
+/// This way, the library only has to be loaded once, but each thread can have its own [IRCompiler] instance.
 pub struct IRCompilerFactory {
     funcs: Arc<bindings::metal_irconverter>,
 }
@@ -235,20 +268,31 @@ impl IRCompilerFactory {
     }
 
     pub fn create_compiler(&self) -> IRCompiler {
-        let compiler = unsafe { self.funcs.IRCompilerCreate() };
+        let compiler = NonNull::new(unsafe { self.funcs.IRCompilerCreate() })
+            .expect("Failed to create IRCompiler");
         IRCompiler {
+            me: compiler.as_ptr(),
             funcs: self.funcs.clone(),
-            me: compiler,
         }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum CompilerError {
+    #[error("Failed to compile IRObject: ({0:?})")]
+    IRObjectCompileError(IRErrorCode),
+    #[error("Failed to synthesize indirect intersection function")]
+    SynthesizeIndirectIntersectionFunctionError,
+    #[error("Failed to synthesize indirect ray dispatch function")]
+    SynthesizeIndirectRayDispatchError,
 }
 
 /// This object is not thread-safe, refer to [the Metal shader converter documentation], the "Multithreading considerations" chapter.
 ///
 /// [the Metal shader converter documentation]: https://developer.apple.com/metal/shader-converter/
 pub struct IRCompiler {
-    funcs: Arc<bindings::metal_irconverter>,
     me: *mut bindings::IRCompiler,
+    funcs: Arc<bindings::metal_irconverter>,
 }
 
 impl Drop for IRCompiler {
@@ -299,21 +343,31 @@ impl IRCompiler {
 
     pub fn synthesize_indirect_intersection_function(
         &mut self,
-        target_metallib: &mut IRMetalLibBinary,
-    ) -> bool {
-        unsafe {
+    ) -> Result<IRMetalLibBinary, CompilerError> {
+        let target_metallib = IRMetalLibBinary::new(&self);
+        if unsafe {
             self.funcs
                 .IRMetalLibSynthesizeIndirectIntersectionFunction(self.me, target_metallib.me)
+        } {
+            return Ok(target_metallib);
+        }
+        {
+            Err(CompilerError::SynthesizeIndirectIntersectionFunctionError)
         }
     }
 
     pub fn synthesize_indirect_ray_dispatch_function(
         &mut self,
-        target_metallib: &mut IRMetalLibBinary,
-    ) -> bool {
-        unsafe {
+    ) -> Result<IRMetalLibBinary, CompilerError> {
+        let target_metallib = IRMetalLibBinary::new(&self);
+        if unsafe {
             self.funcs
                 .IRMetalLibSynthesizeIndirectRayDispatchFunction(self.me, target_metallib.me)
+        } {
+            return Ok(target_metallib);
+        }
+        {
+            Err(CompilerError::SynthesizeIndirectRayDispatchError)
         }
     }
 
@@ -328,7 +382,7 @@ impl IRCompiler {
         &mut self,
         entry_point: &CStr,
         input: &IRObject,
-    ) -> Result<IRObject, Box<dyn std::error::Error>> {
+    ) -> Result<IRObject, CompilerError> {
         let mut error: *mut IRError = std::ptr::null_mut::<IRError>();
 
         let v = unsafe {
@@ -342,11 +396,14 @@ impl IRCompiler {
 
         if error.is_null() {
             Ok(IRObject {
-                funcs: input.funcs.clone(),
                 me: v,
+                funcs: input.funcs.clone(),
             })
         } else {
-            panic!("{:?}", error);
+            let code: u32 = unsafe { self.funcs.IRErrorGetCode(error) };
+            let code: IRErrorCode = unsafe { std::mem::transmute(code) };
+            unsafe { self.funcs.IRErrorDestroy(error) };
+            Err(CompilerError::IRObjectCompileError(code))
         }
     }
 }

@@ -1,11 +1,10 @@
 use std::ffi::CStr;
 
 use saxaboom::{
-    IRComparisonFunction, IRCompilerFactory, IRFilter, IRMetalLibBinary, IRObject,
-    IRReflectionVersion, IRRootConstants, IRRootParameter1, IRRootParameter1_u,
-    IRRootParameterType, IRRootSignature, IRRootSignatureDescriptor1, IRRootSignatureFlags,
-    IRRootSignatureVersion, IRShaderReflection, IRShaderStage, IRShaderVisibility,
-    IRStaticBorderColor, IRStaticSamplerDescriptor, IRTextureAddressMode,
+    IRComparisonFunction, IRCompilerFactory, IRFilter, IRObject, IRReflectionVersion,
+    IRRootConstants, IRRootParameter1, IRRootParameter1_u, IRRootParameterType, IRRootSignature,
+    IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion, IRShaderStage,
+    IRShaderVisibility, IRStaticBorderColor, IRStaticSamplerDescriptor, IRTextureAddressMode,
     IRVersionedRootSignatureDescriptor, IRVersionedRootSignatureDescriptor_u,
 };
 
@@ -62,13 +61,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Load DXIL
         let dxil = include_bytes!("assets/memcpy.cs.dxil");
-        let obj = IRObject::create_from_dxil(&compiler, dxil)?;
+        let obj = IRObject::create_from_dxil(&compiler, dxil);
 
         // Convert to Metal
-        let mut mtl_binary = IRMetalLibBinary::new(&compiler)?;
         let mtllib = compiler
             .alloc_compile_and_link(CStr::from_bytes_with_nul_unchecked(b"main\0"), &obj)?;
-        mtllib.get_metal_lib_binary(IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
+        let mtl_binary =
+            mtllib.get_metal_lib_binary(&compiler, IRShaderStage::IRShaderStageCompute)?;
 
         // Get Metal bytecode
         let metal_bytecode = mtl_binary.get_byte_code();
@@ -77,14 +76,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dbg!(mtllib.get_metal_ir_shader_stage());
 
         // Get reflection from the shader
-        let mut mtl_reflection = IRShaderReflection::new(&compiler)?;
-        mtllib.get_reflection(IRShaderStage::IRShaderStageCompute, &mut mtl_reflection);
+        let mtl_reflection = mtllib.get_reflection(&compiler, IRShaderStage::IRShaderStageCompute);
 
-        let compute_info = mtl_reflection
-            .get_compute_info(IRReflectionVersion::IRReflectionVersion_1_0)
-            .unwrap()
-            .u_1
-            .info_1_0;
+        let compute_info = mtl_reflection.map(|mtl_reflection| {
+            mtl_reflection
+                .get_compute_info(IRReflectionVersion::IRReflectionVersion_1_0)
+                .unwrap()
+                .u_1
+                .info_1_0
+        });
         dbg!(compute_info);
     }
     Ok(())
