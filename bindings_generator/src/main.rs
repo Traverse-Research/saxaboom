@@ -1,17 +1,14 @@
 use std::path::Path;
 
 fn main() {
-    let header = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("wrapper.h")
-        .to_str()
-        .unwrap()
-        .to_string();
-    let out_file = Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.rs");
+    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let header = crate_root.join("wrapper.h").to_str().unwrap().to_string();
+    let out_file = crate_root.join("../src/bindings.rs");
 
     bindgen::Builder::default()
         .header(header)
         .clang_args(&[
-            "-I./vendor/",
+            "-I./bindings_generator/vendor/",
             "-Wno-microsoft-enum-forward-reference",
             "-fretain-comments-from-system-headers",
         ])

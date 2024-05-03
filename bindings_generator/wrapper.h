@@ -13,4 +13,4 @@ typedef enum IRReflectionVersion IRReflectionVersion;
 // Undef __APPLE__ so we avoid generating bindings for dispatch/dispatch.h
 #undef __APPLE__
 
-#include <metal_irconverter/metal_irconverter.h>
+#include "metal_irconverter/metal_irconverter.h"
