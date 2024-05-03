@@ -1,6 +1,4 @@
-use saxaboom::{
-    ffi, IRCompilerFactory, IRMetalLibBinary, IRObject, IRRootSignature, IRShaderReflection,
-};
+use saxaboom::{ffi, IRCompilerFactory, IRObject, IRRootSignature};
 
 fn create_static_sampler(
     min_mag_mip_mode: ffi::IRFilter,
@@ -55,28 +53,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Load DXIL
         let dxil = include_bytes!("assets/memcpy.cs.dxil");
-        let obj = IRObject::create_from_dxil(&compiler, dxil)?;
+        let obj = IRObject::create_from_dxil(&compiler, dxil);
 
         // Convert to Metal
-        let mut mtl_binary = IRMetalLibBinary::new(&compiler)?;
         let mtllib = compiler.alloc_compile_and_link(c"main", &obj)?;
-        mtllib.get_metal_lib_binary(ffi::IRShaderStage::Compute, &mut mtl_binary);
+        let mtl_binary = mtllib.metal_lib_binary(&compiler, ffi::IRShaderStage::Compute)?;
 
         // Get Metal bytecode
-        let metal_bytecode = mtl_binary.get_byte_code();
+        let metal_bytecode = mtl_binary.byte_code();
         dbg!(metal_bytecode.len());
-        dbg!(mtllib.get_type());
-        dbg!(mtllib.get_metal_ir_shader_stage());
+        dbg!(mtllib.object_type());
+        dbg!(mtllib.metal_ir_shader_stage());
 
         // Get reflection from the shader
-        let mut mtl_reflection = IRShaderReflection::new(&compiler)?;
-        mtllib.get_reflection(ffi::IRShaderStage::Compute, &mut mtl_reflection);
+        let mtl_reflection = mtllib.reflection(&compiler, ffi::IRShaderStage::Compute);
 
-        let compute_info = mtl_reflection
-            .get_compute_info(ffi::IRReflectionVersion::_1_0)
-            .unwrap()
-            .u_1
-            .info_1_0;
+        let compute_info = mtl_reflection.map(|mtl_reflection| {
+            mtl_reflection
+                .compute_info(ffi::IRReflectionVersion::_1_0)
+                .unwrap()
+                .u_1
+                .info_1_0
+        });
         dbg!(compute_info);
     }
     Ok(())
