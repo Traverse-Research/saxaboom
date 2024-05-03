@@ -27,12 +27,6 @@ pub use bindings::{
     IRVersionedRootSignatureDescriptor__bindgen_ty_1 as IRVersionedRootSignatureDescriptor_u,
 };
 
-#[repr(u32)]
-pub enum IRBytecodeOwnership {
-    None = 0,
-    Copy = 1,
-}
-
 pub struct IRShaderReflection {
     me: *mut bindings::IRShaderReflection,
     funcs: Arc<bindings::metal_irconverter>,
@@ -170,52 +164,6 @@ impl IRMetalLibBinary {
         };
         bytes
     }
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRDescriptorRangeFlags {
-    IRDescriptorRangeFlagNone = 0,
-    IRDescriptorRangeFlagDescriptorsVolatile = 0x1,
-    IRDescriptorRangeFlagDataVolatile = 0x2,
-    IRDescriptorRangeFlagDataStaticWhileSetAtExecute = 0x4,
-    IRDescriptorRangeFlagDataStatic = 0x8,
-    IRDescriptorRangeFlagDescriptorsStaticKeepingBufferBoundsChecks = 0x10000,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRDescriptorRange1 {
-    pub range_type: IRDescriptorRangeType,
-    pub num_descriptors: u32,
-    pub base_shader_register: u32,
-    pub register_space: u32,
-    pub flags: IRDescriptorRangeFlags,
-    pub offset_in_descriptors_from_table_start: u32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootDescriptorTable1 {
-    pub num_descriptor_ranges: u32,
-    pub p_descriptor_ranges: *const IRDescriptorRange1,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone)]
-pub enum IRRootDescriptorFlags {
-    IRRootDescriptorFlagNone = 0,
-    IRRootDescriptorFlagDataVolatile = 0x2,
-    IRRootDescriptorFlagDataStaticWhileSetAtExecute = 0x4,
-    IRRootDescriptorFlagDataStatic = 0x8,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct IRRootDescriptor1 {
-    pub shader_register: u32,
-    pub register_space: u32,
-    pub flags: IRRootDescriptorFlags,
 }
 
 pub struct IRRootSignature {
