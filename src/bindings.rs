@@ -584,7 +584,7 @@ pub enum IRRootParameterType {
 #[derive(Copy, Clone)]
 pub struct IRRootParameter {
     pub ParameterType: IRRootParameterType,
-    pub __bindgen_anon_1: IRRootParameter__bindgen_ty_1,
+    pub u_1: IRRootParameter__bindgen_ty_1,
     pub ShaderVisibility: IRShaderVisibility,
 }
 #[repr(C)]
@@ -716,7 +716,7 @@ pub struct IRRootDescriptor1 {
 #[derive(Copy, Clone)]
 pub struct IRRootParameter1 {
     pub ParameterType: IRRootParameterType,
-    pub __bindgen_anon_1: IRRootParameter1__bindgen_ty_1,
+    pub u_1: IRRootParameter1__bindgen_ty_1,
     pub ShaderVisibility: IRShaderVisibility,
 }
 #[repr(C)]
@@ -739,7 +739,7 @@ pub struct IRRootSignatureDescriptor1 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedRootSignatureDescriptor {
     pub version: IRRootSignatureVersion,
-    pub __bindgen_anon_1: IRVersionedRootSignatureDescriptor__bindgen_ty_1,
+    pub u_1: IRVersionedRootSignatureDescriptor__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -773,7 +773,7 @@ pub enum IRInputLayoutDescriptorVersion {
 #[derive(Copy, Clone)]
 pub struct IRVersionedInputLayoutDescriptor {
     pub version: IRInputLayoutDescriptorVersion,
-    pub __bindgen_anon_1: IRVersionedInputLayoutDescriptor__bindgen_ty_1,
+    pub u_1: IRVersionedInputLayoutDescriptor__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -970,7 +970,7 @@ pub struct IRCSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedCSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedCSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedCSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -997,7 +997,7 @@ pub struct IRVSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedVSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedVSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedVSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1015,7 +1015,7 @@ pub struct IRFSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedFSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedFSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedFSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1045,7 +1045,7 @@ pub struct IRGSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedGSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedGSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedGSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1074,7 +1074,7 @@ pub struct IRHSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedHSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedHSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedHSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1095,7 +1095,7 @@ pub struct IRDSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedDSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedDSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedDSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1123,7 +1123,7 @@ pub struct IRMSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedMSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedMSInfo__bindgen_ty_1,
+    pub u_1: IRVersionedMSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1140,7 +1140,7 @@ pub struct IRASInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedASInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedASInfo__bindgen_ty_1,
+    pub u_1: IRVersionedASInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1156,7 +1156,7 @@ pub struct IRRTInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedRTInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedRTInfo__bindgen_ty_1,
+    pub u_1: IRVersionedRTInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]

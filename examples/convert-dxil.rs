@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let desc = IRVersionedRootSignatureDescriptor {
             version: IRRootSignatureVersion::IRRootSignatureVersion_1_1,
-            __bindgen_anon_1: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
+            u_1: IRVersionedRootSignatureDescriptor_u { desc_1_1 },
         };
 
         let root_sig = IRRootSignature::create_from_descriptor(&compiler, &desc)?;
@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let compute_info = mtl_reflection
             .get_compute_info(IRReflectionVersion::IRReflectionVersion_1_0)
             .unwrap()
-            .__bindgen_anon_1
+            .u_1
             .info_1_0;
         dbg!(compute_info);
     }
@@ -94,7 +94,7 @@ fn create_root_parameters() -> Vec<IRRootParameter1> {
     let push_constants = IRRootParameter1 {
         ParameterType: IRRootParameterType::IRRootParameterType32BitConstants,
         ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
-        __bindgen_anon_1: IRRootParameter1_u {
+        u_1: IRRootParameter1_u {
             Constants: IRRootConstants {
                 RegisterSpace: 0,
                 ShaderRegister: 0,
@@ -106,7 +106,7 @@ fn create_root_parameters() -> Vec<IRRootParameter1> {
     let indirect_identifier = IRRootParameter1 {
         ParameterType: IRRootParameterType::IRRootParameterType32BitConstants,
         ShaderVisibility: IRShaderVisibility::IRShaderVisibilityAll,
-        __bindgen_anon_1: IRRootParameter1_u {
+        u_1: IRRootParameter1_u {
             Constants: IRRootConstants {
                 RegisterSpace: 1,
                 ShaderRegister: 0,

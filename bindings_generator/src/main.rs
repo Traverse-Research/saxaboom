@@ -24,6 +24,7 @@ fn main() {
         .allowlist_type("IR\\w+")
         .allowlist_function("IR\\w+")
         .allowlist_recursively(true)
+        .anon_fields_prefix("u_")
         // Not in the DLLs provided by Apple
         .blocklist_item("IRMetalLibSynthesizeIntersectionWrapperFunction")
         .generate()
