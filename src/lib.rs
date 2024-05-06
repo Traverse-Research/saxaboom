@@ -94,13 +94,6 @@ impl IRObject {
         }
     }
 
-    pub fn gather_raytracing_intrinsics(&self, entry_point: &CStr) -> u64 {
-        unsafe {
-            self.funcs
-                .IRObjectGatherRaytracingIntrinsics(self.me, entry_point.as_ptr())
-        }
-    }
-
     pub fn get_type(&self) -> IRObjectType {
         unsafe { self.funcs.IRObjectGetType(self.me) }
     }
@@ -194,24 +187,6 @@ impl IRRootSignature {
             })
         }
     }
-
-    pub fn get_resource_locations(&self) -> Vec<IRResourceLocation> {
-        unsafe {
-            let n_resources = self.funcs.IRRootSignatureGetResourceCount(self.me);
-            let empty_location = IRResourceLocation {
-                resourceType: IRResourceType::IRResourceTypeInvalid,
-                space: 0,
-                slot: 0,
-                topLevelOffset: 0,
-                sizeBytes: 0,
-                resourceName: std::ptr::null(),
-            };
-            let mut resource_locations = vec![empty_location; n_resources];
-            self.funcs
-                .IRRootSignatureGetResourceLocations(self.me, resource_locations.as_mut_ptr());
-            resource_locations
-        }
-    }
 }
 
 /// [IRCompilerFactory] is used to load the metal_irconverter dynamic library and holds its functions in an Arc.
@@ -260,58 +235,6 @@ impl IRCompiler {
         unsafe {
             self.funcs
                 .IRCompilerSetGlobalRootSignature(self.me, root_signature.me)
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn set_ray_tracing_pipeline_arguments(
-        &mut self,
-        max_attribute_size_in_bytes: u32,
-        raytracing_pipeline_flags: IRRaytracingPipelineFlags,
-        chs: u64,
-        miss: u64,
-        any_hit: u64,
-        callable_args: u64,
-        max_recursive_depth: i32,
-    ) {
-        unsafe {
-            self.funcs.IRCompilerSetRayTracingPipelineArguments(
-                self.me,
-                max_attribute_size_in_bytes,
-                raytracing_pipeline_flags,
-                chs,
-                miss,
-                any_hit,
-                callable_args,
-                max_recursive_depth,
-            )
-        }
-    }
-
-    pub fn set_hitgroup_type(&mut self, hit_group_type: IRHitGroupType) {
-        unsafe {
-            self.funcs
-                .IRCompilerSetHitgroupType(self.me, hit_group_type)
-        }
-    }
-
-    pub fn synthesize_indirect_intersection_function(
-        &mut self,
-        target_metallib: &mut IRMetalLibBinary,
-    ) -> bool {
-        unsafe {
-            self.funcs
-                .IRMetalLibSynthesizeIndirectIntersectionFunction(self.me, target_metallib.me)
-        }
-    }
-
-    pub fn synthesize_indirect_ray_dispatch_function(
-        &mut self,
-        target_metallib: &mut IRMetalLibBinary,
-    ) -> bool {
-        unsafe {
-            self.funcs
-                .IRMetalLibSynthesizeIndirectRayDispatchFunction(self.me, target_metallib.me)
         }
     }
 
