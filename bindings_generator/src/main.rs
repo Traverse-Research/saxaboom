@@ -8,6 +8,7 @@ fn main() {
 
     bindgen::Builder::default()
         .header(header.to_str().unwrap())
+        .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&[
             format!("-I{}", include_dir.to_str().unwrap()).as_str(),
             "-Wno-microsoft-enum-forward-reference",
@@ -30,4 +31,15 @@ fn main() {
         .expect("Unable to generate bindings")
         .write_to_file(out_file)
         .expect("Couldn't write bindings!");
+}
+
+use bindgen::callbacks::ParseCallbacks;
+
+#[derive(Debug)]
+struct RenameCallback;
+impl ParseCallbacks for RenameCallback {
+    fn item_name(&self, item: &str) -> Option<String> {
+        item.strip_suffix("__bindgen_ty_1")
+            .map(|name| format!("{name}_u"))
+    }
 }

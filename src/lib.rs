@@ -18,12 +18,10 @@ mod bindings;
 pub use bindings::{
     IRCSInfo_1_0, IRComparisonFunction, IRDescriptorRangeType, IRFilter, IRHitGroupType,
     IRObjectType, IRRaytracingPipelineFlags, IRReflectionVersion, IRResourceLocation,
-    IRResourceType, IRRootConstants, IRRootParameter1,
-    IRRootParameter1__bindgen_ty_1 as IRRootParameter1_u, IRRootParameterType,
+    IRResourceType, IRRootConstants, IRRootParameter1, IRRootParameter1_u, IRRootParameterType,
     IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion, IRShaderStage,
     IRShaderVisibility, IRStaticBorderColor, IRStaticSamplerDescriptor, IRTextureAddressMode,
-    IRVersionedCSInfo, IRVersionedRootSignatureDescriptor,
-    IRVersionedRootSignatureDescriptor__bindgen_ty_1 as IRVersionedRootSignatureDescriptor_u,
+    IRVersionedCSInfo, IRVersionedRootSignatureDescriptor, IRVersionedRootSignatureDescriptor_u,
 };
 
 pub struct IRShaderReflection {
