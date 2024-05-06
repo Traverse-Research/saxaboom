@@ -15,7 +15,6 @@ use std::{
 )]
 mod bindings;
 
-use bindings::IRError;
 pub use bindings::{
     IRCSInfo_1_0, IRComparisonFunction, IRDescriptorRangeType, IRFilter, IRHitGroupType,
     IRObjectType, IRRaytracingPipelineFlags, IRReflectionVersion, IRResourceLocation,
@@ -89,8 +88,8 @@ impl IRObject {
             );
 
             Ok(Self {
-                funcs: compiler.funcs.clone(),
                 me,
+                funcs: compiler.funcs.clone(),
             })
         }
     }
@@ -98,12 +97,12 @@ impl IRObject {
     pub fn gather_raytracing_intrinsics(&self, entry_point: &CStr) -> u64 {
         unsafe {
             self.funcs
-                .IRObjectGatherRaytracingIntrinsics(self.me, entry_point.as_ptr().cast())
+                .IRObjectGatherRaytracingIntrinsics(self.me, entry_point.as_ptr())
         }
     }
 
     pub fn get_type(&self) -> IRObjectType {
-        unsafe { self.funcs.IRObjectGetType(self.me.cast_const()) }
+        unsafe { self.funcs.IRObjectGetType(self.me) }
     }
 
     pub fn get_metal_ir_shader_stage(&self) -> IRShaderStage {
@@ -149,8 +148,8 @@ impl IRMetalLibBinary {
         unsafe {
             let me = compiler.funcs.IRMetalLibBinaryCreate();
             Ok(Self {
-                funcs: compiler.funcs.clone(),
                 me,
+                funcs: compiler.funcs.clone(),
             })
         }
     }
@@ -183,24 +182,22 @@ impl IRRootSignature {
         desc: &IRVersionedRootSignatureDescriptor,
     ) -> Result<IRRootSignature, Box<dyn std::error::Error>> {
         unsafe {
-            let mut error: *mut IRError = std::ptr::null_mut::<IRError>();
+            let mut error = std::ptr::null_mut();
 
             let me = compiler
                 .funcs
                 .IRRootSignatureCreateFromDescriptor(desc, &mut error);
 
             Ok(Self {
-                funcs: compiler.funcs.clone(),
                 me,
+                funcs: compiler.funcs.clone(),
             })
         }
     }
 
     pub fn get_resource_locations(&self) -> Vec<IRResourceLocation> {
         unsafe {
-            let n_resources = self
-                .funcs
-                .IRRootSignatureGetResourceCount(self.me as *const _);
+            let n_resources = self.funcs.IRRootSignatureGetResourceCount(self.me);
             let empty_location = IRResourceLocation {
                 resourceType: IRResourceType::IRResourceTypeInvalid,
                 space: 0,
@@ -210,15 +207,16 @@ impl IRRootSignature {
                 resourceName: std::ptr::null(),
             };
             let mut resource_locations = vec![empty_location; n_resources];
-            self.funcs.IRRootSignatureGetResourceLocations(
-                self.me as *const _,
-                resource_locations.as_mut_ptr(),
-            );
+            self.funcs
+                .IRRootSignatureGetResourceLocations(self.me, resource_locations.as_mut_ptr());
             resource_locations
         }
     }
 }
 
+/// [IRCompilerFactory] is used to load the metal_irconverter dynamic library and holds its functions in an Arc.
+/// Since [IRCompiler] is not thread-safe, this struct provides an interface to create [IRCompiler] instances.
+/// This way, the library only has to be loaded once, but each thread can have its own [IRCompiler] instance.
 pub struct IRCompilerFactory {
     funcs: Arc<bindings::metal_irconverter>,
 }
@@ -237,8 +235,8 @@ impl IRCompilerFactory {
     pub fn create_compiler(&self) -> IRCompiler {
         let compiler = unsafe { self.funcs.IRCompilerCreate() };
         IRCompiler {
-            funcs: self.funcs.clone(),
             me: compiler,
+            funcs: self.funcs.clone(),
         }
     }
 }
@@ -247,8 +245,8 @@ impl IRCompilerFactory {
 ///
 /// [the Metal shader converter documentation]: https://developer.apple.com/metal/shader-converter/
 pub struct IRCompiler {
-    funcs: Arc<bindings::metal_irconverter>,
     me: *mut bindings::IRCompiler,
+    funcs: Arc<bindings::metal_irconverter>,
 }
 
 impl Drop for IRCompiler {
@@ -329,7 +327,7 @@ impl IRCompiler {
         entry_point: &CStr,
         input: &IRObject,
     ) -> Result<IRObject, Box<dyn std::error::Error>> {
-        let mut error: *mut IRError = std::ptr::null_mut::<IRError>();
+        let mut error = std::ptr::null_mut();
 
         let v = unsafe {
             self.funcs.IRCompilerAllocCompileAndLink(
@@ -342,8 +340,8 @@ impl IRCompiler {
 
         if error.is_null() {
             Ok(IRObject {
-                funcs: input.funcs.clone(),
                 me: v,
+                funcs: input.funcs.clone(),
             })
         } else {
             panic!("{:?}", error);

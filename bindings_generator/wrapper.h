@@ -1,6 +1,3 @@
-
-// This wrapper #includes the metal_irconverter header with a few tweaks to make bindgen happy
-
 // Bindgen produces better output when building as C and not C++.
 typedef struct IRError IRError;
 typedef struct IRRootSignature IRRootSignature;
@@ -13,4 +10,4 @@ typedef enum IRReflectionVersion IRReflectionVersion;
 // Undef __APPLE__ so we avoid generating bindings for dispatch/dispatch.h
 #undef __APPLE__
 
-#include "metal_irconverter/metal_irconverter.h"
+#include <metal_irconverter/metal_irconverter.h>
