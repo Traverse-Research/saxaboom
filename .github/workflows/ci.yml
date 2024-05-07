@@ -31,3 +31,4 @@ jobs:
           path: src/
       - name: Diff generated Rust code
         run: test -z "$(git status --porcelain)" || (echo "::error::Generated files are different, please regenerate with cargo run -p generate_bindings!"; git diff; false)
+        
