@@ -17,13 +17,13 @@ fn create_static_sampler(
         AddressW: address_mode,
         MipLODBias: 0.0,
         MaxAnisotropy: max_anisotropy,
-        ComparisonFunc: ffi::IRComparisonFunction::IRComparisonFunctionNever,
+        ComparisonFunc: ffi::IRComparisonFunction::Never,
         MinLOD: 0.0,
         MaxLOD: 100000.0,
         ShaderRegister: index,
         RegisterSpace: 0,
-        ShaderVisibility: ffi::IRShaderVisibility::IRShaderVisibilityAll,
-        BorderColor: ffi::IRStaticBorderColor::IRStaticBorderColorTransparentBlack,
+        ShaderVisibility: ffi::IRShaderVisibility::All,
+        BorderColor: ffi::IRStaticBorderColor::OpaqueBlack,
     }
 }
 
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut static_samplers = create_static_samplers();
 
         let desc_1_1 = ffi::IRRootSignatureDescriptor1 {
-            Flags: ffi::IRRootSignatureFlags::IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed,
+            Flags: ffi::IRRootSignatureFlags::CBVSRVUAVHeapDirectlyIndexed,
             NumParameters: parameters.len() as u32,
             pParameters: parameters.as_mut_ptr(),
             NumStaticSamplers: static_samplers.len() as u32,
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let desc = ffi::IRVersionedRootSignatureDescriptor {
-            version: ffi::IRRootSignatureVersion::IRRootSignatureVersion_1_1,
+            version: ffi::IRRootSignatureVersion::_1_1,
             u_1: ffi::IRVersionedRootSignatureDescriptor_u { desc_1_1 },
         };
 
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Convert to Metal
         let mut mtl_binary = IRMetalLibBinary::new(&compiler)?;
         let mtllib = compiler.alloc_compile_and_link(c"main", &obj)?;
-        mtllib.get_metal_lib_binary(ffi::IRShaderStage::IRShaderStageCompute, &mut mtl_binary);
+        mtllib.get_metal_lib_binary(ffi::IRShaderStage::Compute, &mut mtl_binary);
 
         // Get Metal bytecode
         let metal_bytecode = mtl_binary.get_byte_code();
@@ -70,13 +70,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Get reflection from the shader
         let mut mtl_reflection = IRShaderReflection::new(&compiler)?;
-        mtllib.get_reflection(
-            ffi::IRShaderStage::IRShaderStageCompute,
-            &mut mtl_reflection,
-        );
+        mtllib.get_reflection(ffi::IRShaderStage::Compute, &mut mtl_reflection);
 
         let compute_info = mtl_reflection
-            .get_compute_info(ffi::IRReflectionVersion::IRReflectionVersion_1_0)
+            .get_compute_info(ffi::IRReflectionVersion::_1_0)
             .unwrap()
             .u_1
             .info_1_0;
@@ -87,8 +84,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_root_parameters() -> Vec<ffi::IRRootParameter1> {
     let push_constants = ffi::IRRootParameter1 {
-        ParameterType: ffi::IRRootParameterType::IRRootParameterType32BitConstants,
-        ShaderVisibility: ffi::IRShaderVisibility::IRShaderVisibilityAll,
+        ParameterType: ffi::IRRootParameterType::_32BitConstants,
+        ShaderVisibility: ffi::IRShaderVisibility::All,
         u_1: ffi::IRRootParameter1_u {
             Constants: ffi::IRRootConstants {
                 RegisterSpace: 0,
@@ -99,8 +96,8 @@ fn create_root_parameters() -> Vec<ffi::IRRootParameter1> {
     };
 
     let indirect_identifier = ffi::IRRootParameter1 {
-        ParameterType: ffi::IRRootParameterType::IRRootParameterType32BitConstants,
-        ShaderVisibility: ffi::IRShaderVisibility::IRShaderVisibilityAll,
+        ParameterType: ffi::IRRootParameterType::_32BitConstants,
+        ShaderVisibility: ffi::IRShaderVisibility::All,
         u_1: ffi::IRRootParameter1_u {
             Constants: ffi::IRRootConstants {
                 RegisterSpace: 1,
@@ -116,44 +113,44 @@ fn create_root_parameters() -> Vec<ffi::IRRootParameter1> {
 fn create_static_samplers() -> Vec<ffi::IRStaticSamplerDescriptor> {
     vec![
         create_static_sampler(
-            ffi::IRFilter::IRFilterMinMagMipPoint,
-            ffi::IRTextureAddressMode::IRTextureAddressModeWrap,
+            ffi::IRFilter::MinMagMipPoint,
+            ffi::IRTextureAddressMode::Wrap,
             0,
             None,
         ),
         create_static_sampler(
-            ffi::IRFilter::IRFilterMinMagMipPoint,
-            ffi::IRTextureAddressMode::IRTextureAddressModeClamp,
+            ffi::IRFilter::MinMagMipPoint,
+            ffi::IRTextureAddressMode::Clamp,
             1,
             None,
         ),
         create_static_sampler(
-            ffi::IRFilter::IRFilterMinMagMipLinear,
-            ffi::IRTextureAddressMode::IRTextureAddressModeWrap,
+            ffi::IRFilter::MinMagMipLinear,
+            ffi::IRTextureAddressMode::Wrap,
             2,
             None,
         ),
         create_static_sampler(
-            ffi::IRFilter::IRFilterMinMagMipLinear,
-            ffi::IRTextureAddressMode::IRTextureAddressModeClamp,
+            ffi::IRFilter::MinMagMipLinear,
+            ffi::IRTextureAddressMode::Clamp,
             3,
             None,
         ),
         create_static_sampler(
-            ffi::IRFilter::IRFilterMinMagMipLinear,
-            ffi::IRTextureAddressMode::IRTextureAddressModeBorder,
+            ffi::IRFilter::MinMagMipLinear,
+            ffi::IRTextureAddressMode::Border,
             4,
             None,
         ),
         create_static_sampler(
-            ffi::IRFilter::IRFilterAnisotropic,
-            ffi::IRTextureAddressMode::IRTextureAddressModeWrap,
+            ffi::IRFilter::Anisotropic,
+            ffi::IRTextureAddressMode::Wrap,
             5,
             Some(2),
         ),
         create_static_sampler(
-            ffi::IRFilter::IRFilterAnisotropic,
-            ffi::IRTextureAddressMode::IRTextureAddressModeWrap,
+            ffi::IRFilter::Anisotropic,
+            ffi::IRTextureAddressMode::Wrap,
             6,
             Some(4),
         ),

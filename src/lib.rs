@@ -74,7 +74,7 @@ impl IRObject {
             let me = compiler.funcs.IRObjectCreateFromDXIL(
                 bytecode.as_ptr(),
                 bytecode.len(),
-                bindings::IRBytecodeOwnership::IRBytecodeOwnershipNone,
+                bindings::IRBytecodeOwnership::None,
             );
 
             Ok(Self {

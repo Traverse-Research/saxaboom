@@ -33,35 +33,33 @@ pub struct IRShaderReflection {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRComparisonFunction {
-    IRComparisonFunctionNever = 1,
-    IRComparisonFunctionLess = 2,
-    IRComparisonFunctionEqual = 3,
-    IRComparisonFunctionLessEqual = 4,
-    IRComparisonFunctionGreater = 5,
-    IRComparisonFunctionNotEqual = 6,
-    IRComparisonFunctionGreaterEqual = 7,
-    IRComparisonFunctionAlways = 8,
+    Never = 1,
+    Less = 2,
+    Equal = 3,
+    LessEqual = 4,
+    Greater = 5,
+    NotEqual = 6,
+    GreaterEqual = 7,
+    Always = 8,
 }
 impl IRDescriptorRangeFlags {
-    pub const IRDescriptorRangeFlagNone: IRDescriptorRangeFlags = IRDescriptorRangeFlags(0);
+    pub const None: IRDescriptorRangeFlags = IRDescriptorRangeFlags(0);
 }
 impl IRDescriptorRangeFlags {
-    pub const IRDescriptorRangeFlagDescriptorsVolatile: IRDescriptorRangeFlags =
-        IRDescriptorRangeFlags(1);
+    pub const DescriptorsVolatile: IRDescriptorRangeFlags = IRDescriptorRangeFlags(1);
 }
 impl IRDescriptorRangeFlags {
-    pub const IRDescriptorRangeFlagDataVolatile: IRDescriptorRangeFlags = IRDescriptorRangeFlags(2);
+    pub const DataVolatile: IRDescriptorRangeFlags = IRDescriptorRangeFlags(2);
 }
 impl IRDescriptorRangeFlags {
-    pub const IRDescriptorRangeFlagDataStaticWhileSetAtExecute: IRDescriptorRangeFlags =
-        IRDescriptorRangeFlags(4);
+    pub const DataStaticWhileSetAtExecute: IRDescriptorRangeFlags = IRDescriptorRangeFlags(4);
 }
 impl IRDescriptorRangeFlags {
-    pub const IRDescriptorRangeFlagDataStatic: IRDescriptorRangeFlags = IRDescriptorRangeFlags(8);
+    pub const DataStatic: IRDescriptorRangeFlags = IRDescriptorRangeFlags(8);
 }
 impl IRDescriptorRangeFlags {
-    pub const IRDescriptorRangeFlagDescriptorsStaticKeepingBufferBoundsChecks:
-        IRDescriptorRangeFlags = IRDescriptorRangeFlags(65536);
+    pub const DescriptorsStaticKeepingBufferBoundsChecks: IRDescriptorRangeFlags =
+        IRDescriptorRangeFlags(65536);
 }
 impl ::std::ops::BitOr<IRDescriptorRangeFlags> for IRDescriptorRangeFlags {
     type Output = Self;
@@ -95,225 +93,225 @@ pub struct IRDescriptorRangeFlags(pub ::std::os::raw::c_uint);
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRFilter {
-    IRFilterMinMagMipPoint = 0,
-    IRFilterMinMagPointMipLinear = 1,
-    IRFilterMinPointMagLinearMipPoint = 4,
-    IRFilterMinPointMagMipLinear = 5,
-    IRFilterMinLinearMagMipPoint = 16,
-    IRFilterMinLinearMagPointMipLinear = 17,
-    IRFilterMinMagLinearMipPoint = 20,
-    IRFilterMinMagMipLinear = 21,
-    IRFilterAnisotropic = 85,
-    IRFilterComparisonMinMagMipPoint = 128,
-    IRFilterComparisonMinMagPointMipLinear = 129,
-    IRFilterComparisonMinPointMagLinearMipPoint = 132,
-    IRFilterComparisonMinPointMagMipLinear = 133,
-    IRFilterComparisonMinLinearMagMipPoint = 144,
-    IRFilterComparisonMinLinearMagPointMipLinear = 145,
-    IRFilterComparisonMinMagLinearMipPoint = 148,
-    IRFilterComparisonMinMagMipLinear = 149,
-    IRFilterComparisonAnisotropic = 213,
-    IRFilterMinimumMinMagMipPoint = 256,
-    IRFilterMinimumMinMagPointMipLinear = 257,
-    IRFilterMinimumMinPointMagLinearMipPoint = 260,
-    IRFilterMinimumMinPointMagMipLinear = 261,
-    IRFilterMinimumMinLinearMagMipPoint = 272,
-    IRFilterMinimumMinLinearMagPointMipLinear = 273,
-    IRFilterMinimumMinMagLinearMipPoint = 276,
-    IRFilterMinimumMinMagMipLinear = 277,
-    IRFilterMinimumAnisotropic = 341,
-    IRFilterMaximumMinMagMipPoint = 384,
-    IRFilterMaximumMinMagPointMipLinear = 385,
-    IRFilterMaximumMinPointMagLinearMipPoint = 388,
-    IRFilterMaximumMinPointMagMipLinear = 389,
-    IRFilterMaximumMinLinearMagMipPoint = 400,
-    IRFilterMaximumMinLinearMagPointMipLinear = 401,
-    IRFilterMaximumMinMagLinearMipPoint = 404,
-    IRFilterMaximumMinMagMipLinear = 405,
-    IRFilterMaximumAnisotropic = 469,
+    MinMagMipPoint = 0,
+    MinMagPointMipLinear = 1,
+    MinPointMagLinearMipPoint = 4,
+    MinPointMagMipLinear = 5,
+    MinLinearMagMipPoint = 16,
+    MinLinearMagPointMipLinear = 17,
+    MinMagLinearMipPoint = 20,
+    MinMagMipLinear = 21,
+    Anisotropic = 85,
+    ComparisonMinMagMipPoint = 128,
+    ComparisonMinMagPointMipLinear = 129,
+    ComparisonMinPointMagLinearMipPoint = 132,
+    ComparisonMinPointMagMipLinear = 133,
+    ComparisonMinLinearMagMipPoint = 144,
+    ComparisonMinLinearMagPointMipLinear = 145,
+    ComparisonMinMagLinearMipPoint = 148,
+    ComparisonMinMagMipLinear = 149,
+    ComparisonAnisotropic = 213,
+    MinimumMinMagMipPoint = 256,
+    MinimumMinMagPointMipLinear = 257,
+    MinimumMinPointMagLinearMipPoint = 260,
+    MinimumMinPointMagMipLinear = 261,
+    MinimumMinLinearMagMipPoint = 272,
+    MinimumMinLinearMagPointMipLinear = 273,
+    MinimumMinMagLinearMipPoint = 276,
+    MinimumMinMagMipLinear = 277,
+    MinimumAnisotropic = 341,
+    MaximumMinMagMipPoint = 384,
+    MaximumMinMagPointMipLinear = 385,
+    MaximumMinPointMagLinearMipPoint = 388,
+    MaximumMinPointMagMipLinear = 389,
+    MaximumMinLinearMagMipPoint = 400,
+    MaximumMinLinearMagPointMipLinear = 401,
+    MaximumMinMagLinearMipPoint = 404,
+    MaximumMinMagMipLinear = 405,
+    MaximumAnisotropic = 469,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRFormat {
-    IRFormatUnknown = 0,
-    IRFormatR32G32B32A32Typeless = 1,
-    IRFormatR32G32B32A32Float = 2,
-    IRFormatR32G32B32A32Uint = 3,
-    IRFormatR32G32B32A32Sint = 4,
-    IRFormatR32G32B32Typeless = 5,
-    IRFormatR32G32B32Float = 6,
-    IRFormatR32G32B32Uint = 7,
-    IRFormatR32G32B32Sint = 8,
-    IRFormatR16G16B16A16Typeless = 9,
-    IRFormatR16G16B16A16Float = 10,
-    IRFormatR16G16B16A16Unorm = 11,
-    IRFormatR16G16B16A16Uint = 12,
-    IRFormatR16G16B16A16Snorm = 13,
-    IRFormatR16G16B16A16Sint = 14,
-    IRFormatR32G32Typeless = 15,
-    IRFormatR32G32Float = 16,
-    IRFormatR32G32Uint = 17,
-    IRFormatR32G32Sint = 18,
-    IRFormatR32G8X24Typeless = 19,
-    IRFormatD32FloatS8X24Uint = 20,
-    IRFormatR32FloatX8X24Typeless = 21,
-    IRFormatX32TypelessG8X24Uint = 22,
-    IRFormatR10G10B10A2Typeless = 23,
-    IRFormatR10G10B10A2Unorm = 24,
-    IRFormatR10G10B10A2Uint = 25,
-    IRFormatR11G11B10Float = 26,
-    IRFormatR8G8B8A8Typeless = 27,
-    IRFormatR8G8B8A8Unorm = 28,
-    IRFormatR8G8B8A8Unorm_sRGB = 29,
-    IRFormatR8G8B8A8Uint = 30,
-    IRFormatR8G8B8A8Snorm = 31,
-    IRFormatR8G8B8A8Sint = 32,
-    IRFormatR16G16Typeless = 33,
-    IRFormatR16G16Float = 34,
-    IRFormatR16G16Unorm = 35,
-    IRFormatR16G16Uint = 36,
-    IRFormatR16G16Snorm = 37,
-    IRFormatR16G16Sint = 38,
-    IRFormatR32Typeless = 39,
-    IRFormatD32Float = 40,
-    IRFormatR32Float = 41,
-    IRFormatR32Uint = 42,
-    IRFormatR32Sint = 43,
-    IRFormatR24G8Typeless = 44,
-    IRFormatD24UnormS8Uint = 45,
-    IRFormatR24UnormX8Typeless = 46,
-    IRFormatX24TypelessG8Uint = 47,
-    IRFormatR8G8Typeless = 48,
-    IRFormatR8G8Unorm = 49,
-    IRFormatR8G8Uint = 50,
-    IRFormatR8G8Snorm = 51,
-    IRFormatR8G8Sint = 52,
-    IRFormatR16Typeless = 53,
-    IRFormatR16Float = 54,
-    IRFormatD16Unorm = 55,
-    IRFormatR16Unorm = 56,
-    IRFormatR16Uint = 57,
-    IRFormatR16Snorm = 58,
-    IRFormatR16Sint = 59,
-    IRFormatR8Typeless = 60,
-    IRFormatR8Unorm = 61,
-    IRFormatR8Uint = 62,
-    IRFormatR8Snorm = 63,
-    IRFormatR8Sint = 64,
-    IRFormatA8Unorm = 65,
-    IRFormatR1Unorm = 66,
-    IRFormatR9G9B9E5Sharedexp = 67,
-    IRFormatR8G8B8G8Unorm = 68,
-    IRFormatG8R8G8B8Unorm = 69,
-    IRFormatBC1Typeless = 70,
-    IRFormatBC1Unorm = 71,
-    IRFormatBC1Unorm_sRGB = 72,
-    IRFormatBC2Typeless = 73,
-    IRFormatBC2Unorm = 74,
-    IRFormatBC2Unorm_sRGB = 75,
-    IRFormatBC3Typeless = 76,
-    IRFormatBC3Unorm = 77,
-    IRFormatBC3Unorm_sRGB = 78,
-    IRFormatBC4Typeless = 79,
-    IRFormatBC4Unorm = 80,
-    IRFormatBC4Snorm = 81,
-    IRFormatBC5Typeless = 82,
-    IRFormatBC5Unorm = 83,
-    IRFormatBC5Snorm = 84,
-    IRFormatB5G6R5Unorm = 85,
-    IRFormatB5G5R5A1Unorm = 86,
-    IRFormatB8G8R8A8Unorm = 87,
-    IRFormatB8G8R8X8Unorm = 88,
-    IRFormatR10G10B10XRBiasA2Unorm = 89,
-    IRFormatB8G8R8A8Typeless = 90,
-    IRFormatB8G8R8A8Unorm_sRGB = 91,
-    IRFormatB8G8R8X8Typeless = 92,
-    IRFormatB8G8R8X8Unorm_sRGB = 93,
-    IRFormatBC6HTypeless = 94,
-    IRFormatBC6HUf16 = 95,
-    IRFormatBC6HSf16 = 96,
-    IRFormatBC7Typeless = 97,
-    IRFormatBC7Unorm = 98,
-    IRFormatBC7Unorm_sRGB = 99,
-    IRFormatAYUV = 100,
-    IRFormatY410 = 101,
-    IRFormatY416 = 102,
-    IRFormatNV12 = 103,
-    IRFormatP010 = 104,
-    IRFormatP016 = 105,
-    IRFormat420Opaque = 106,
-    IRFormatYUY2 = 107,
-    IRFormatY210 = 108,
-    IRFormatY216 = 109,
-    IRFormatNV11 = 110,
-    IRFormatAI44 = 111,
-    IRFormatIA44 = 112,
-    IRFormatP8 = 113,
-    IRFormatA8P8 = 114,
-    IRFormatB4G4R4A4Unorm = 115,
-    IRFormatP208 = 130,
-    IRFormatV208 = 131,
-    IRFormatV408 = 132,
-    IRFormatSamplerFeedbackMinMipOpaque = 189,
-    IRFormatSamplerFeedbackMipRegionUsedOpaque = 190,
-    IRFormatForceUint = 4294967295,
+    Unknown = 0,
+    R32G32B32A32Typeless = 1,
+    R32G32B32A32Float = 2,
+    R32G32B32A32Uint = 3,
+    R32G32B32A32Sint = 4,
+    R32G32B32Typeless = 5,
+    R32G32B32Float = 6,
+    R32G32B32Uint = 7,
+    R32G32B32Sint = 8,
+    R16G16B16A16Typeless = 9,
+    R16G16B16A16Float = 10,
+    R16G16B16A16Unorm = 11,
+    R16G16B16A16Uint = 12,
+    R16G16B16A16Snorm = 13,
+    R16G16B16A16Sint = 14,
+    R32G32Typeless = 15,
+    R32G32Float = 16,
+    R32G32Uint = 17,
+    R32G32Sint = 18,
+    R32G8X24Typeless = 19,
+    D32FloatS8X24Uint = 20,
+    R32FloatX8X24Typeless = 21,
+    X32TypelessG8X24Uint = 22,
+    R10G10B10A2Typeless = 23,
+    R10G10B10A2Unorm = 24,
+    R10G10B10A2Uint = 25,
+    R11G11B10Float = 26,
+    R8G8B8A8Typeless = 27,
+    R8G8B8A8Unorm = 28,
+    R8G8B8A8Unorm_sRGB = 29,
+    R8G8B8A8Uint = 30,
+    R8G8B8A8Snorm = 31,
+    R8G8B8A8Sint = 32,
+    R16G16Typeless = 33,
+    R16G16Float = 34,
+    R16G16Unorm = 35,
+    R16G16Uint = 36,
+    R16G16Snorm = 37,
+    R16G16Sint = 38,
+    R32Typeless = 39,
+    D32Float = 40,
+    R32Float = 41,
+    R32Uint = 42,
+    R32Sint = 43,
+    R24G8Typeless = 44,
+    D24UnormS8Uint = 45,
+    R24UnormX8Typeless = 46,
+    X24TypelessG8Uint = 47,
+    R8G8Typeless = 48,
+    R8G8Unorm = 49,
+    R8G8Uint = 50,
+    R8G8Snorm = 51,
+    R8G8Sint = 52,
+    R16Typeless = 53,
+    R16Float = 54,
+    D16Unorm = 55,
+    R16Unorm = 56,
+    R16Uint = 57,
+    R16Snorm = 58,
+    R16Sint = 59,
+    R8Typeless = 60,
+    R8Unorm = 61,
+    R8Uint = 62,
+    R8Snorm = 63,
+    R8Sint = 64,
+    A8Unorm = 65,
+    R1Unorm = 66,
+    R9G9B9E5Sharedexp = 67,
+    R8G8B8G8Unorm = 68,
+    G8R8G8B8Unorm = 69,
+    BC1Typeless = 70,
+    BC1Unorm = 71,
+    BC1Unorm_sRGB = 72,
+    BC2Typeless = 73,
+    BC2Unorm = 74,
+    BC2Unorm_sRGB = 75,
+    BC3Typeless = 76,
+    BC3Unorm = 77,
+    BC3Unorm_sRGB = 78,
+    BC4Typeless = 79,
+    BC4Unorm = 80,
+    BC4Snorm = 81,
+    BC5Typeless = 82,
+    BC5Unorm = 83,
+    BC5Snorm = 84,
+    B5G6R5Unorm = 85,
+    B5G5R5A1Unorm = 86,
+    B8G8R8A8Unorm = 87,
+    B8G8R8X8Unorm = 88,
+    R10G10B10XRBiasA2Unorm = 89,
+    B8G8R8A8Typeless = 90,
+    B8G8R8A8Unorm_sRGB = 91,
+    B8G8R8X8Typeless = 92,
+    B8G8R8X8Unorm_sRGB = 93,
+    BC6HTypeless = 94,
+    BC6HUf16 = 95,
+    BC6HSf16 = 96,
+    BC7Typeless = 97,
+    BC7Unorm = 98,
+    BC7Unorm_sRGB = 99,
+    AYUV = 100,
+    Y410 = 101,
+    Y416 = 102,
+    NV12 = 103,
+    P010 = 104,
+    P016 = 105,
+    _420Opaque = 106,
+    YUY2 = 107,
+    Y210 = 108,
+    Y216 = 109,
+    NV11 = 110,
+    AI44 = 111,
+    IA44 = 112,
+    P8 = 113,
+    A8P8 = 114,
+    B4G4R4A4Unorm = 115,
+    P208 = 130,
+    V208 = 131,
+    V408 = 132,
+    SamplerFeedbackMinMipOpaque = 189,
+    SamplerFeedbackMipRegionUsedOpaque = 190,
+    ForceUint = 4294967295,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRInputClassification {
-    IRInputClassificationPerVertexData = 0,
-    IRInputClassificationPerInstanceData = 1,
+    PerVertexData = 0,
+    PerInstanceData = 1,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRInputPrimitive {
-    IRInputPrimitiveUndefined = 0,
-    IRInputPrimitivePoint = 1,
-    IRInputPrimitiveLine = 2,
-    IRInputPrimitiveTriangle = 3,
-    IRInputPrimitiveLineAdj = 6,
-    IRInputPrimitiveTriangleAdj = 7,
-    IRInputPrimitive1ControlPointPatch = 8,
-    IRInputPrimitive2ControlPointPatch = 9,
-    IRInputPrimitive3ControlPointPatch = 10,
-    IRInputPrimitive4ControlPointPatch = 11,
-    IRInputPrimitive5ControlPointPatch = 12,
-    IRInputPrimitive6ControlPointPatch = 13,
-    IRInputPrimitive7ControlPointPatch = 14,
-    IRInputPrimitive8ControlPointPatch = 15,
-    IRInputPrimitive9ControlPointPatch = 16,
-    IRInputPrimitive10ControlPointPatch = 17,
-    IRInputPrimitive11ControlPointPatch = 18,
-    IRInputPrimitive12ControlPointPatch = 19,
-    IRInputPrimitive13ControlPointPatch = 20,
-    IRInputPrimitive14ControlPointPatch = 21,
-    IRInputPrimitive15ControlPointPatch = 22,
-    IRInputPrimitive16ControlPointPatch = 23,
-    IRInputPrimitive17ControlPointPatch = 24,
-    IRInputPrimitive18ControlPointPatch = 25,
-    IRInputPrimitive19ControlPointPatch = 26,
-    IRInputPrimitive20ControlPointPatch = 27,
-    IRInputPrimitive21ControlPointPatch = 28,
-    IRInputPrimitive22ControlPointPatch = 29,
-    IRInputPrimitive23ControlPointPatch = 30,
-    IRInputPrimitive24ControlPointPatch = 31,
-    IRInputPrimitive25ControlPointPatch = 32,
-    IRInputPrimitive26ControlPointPatch = 33,
-    IRInputPrimitive27ControlPointPatch = 34,
-    IRInputPrimitive28ControlPointPatch = 35,
-    IRInputPrimitive29ControlPointPatch = 36,
-    IRInputPrimitive30ControlPointPatch = 37,
-    IRInputPrimitive31ControlPointPatch = 38,
-    IRInputPrimitive32ControlPointPatch = 39,
+    Undefined = 0,
+    Point = 1,
+    Line = 2,
+    Triangle = 3,
+    LineAdj = 6,
+    TriangleAdj = 7,
+    _1ControlPointPatch = 8,
+    _2ControlPointPatch = 9,
+    _3ControlPointPatch = 10,
+    _4ControlPointPatch = 11,
+    _5ControlPointPatch = 12,
+    _6ControlPointPatch = 13,
+    _7ControlPointPatch = 14,
+    _8ControlPointPatch = 15,
+    _9ControlPointPatch = 16,
+    _10ControlPointPatch = 17,
+    _11ControlPointPatch = 18,
+    _12ControlPointPatch = 19,
+    _13ControlPointPatch = 20,
+    _14ControlPointPatch = 21,
+    _15ControlPointPatch = 22,
+    _16ControlPointPatch = 23,
+    _17ControlPointPatch = 24,
+    _18ControlPointPatch = 25,
+    _19ControlPointPatch = 26,
+    _20ControlPointPatch = 27,
+    _21ControlPointPatch = 28,
+    _22ControlPointPatch = 29,
+    _23ControlPointPatch = 30,
+    _24ControlPointPatch = 31,
+    _25ControlPointPatch = 32,
+    _26ControlPointPatch = 33,
+    _27ControlPointPatch = 34,
+    _28ControlPointPatch = 35,
+    _29ControlPointPatch = 36,
+    _30ControlPointPatch = 37,
+    _31ControlPointPatch = 38,
+    _32ControlPointPatch = 39,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRInputTopology {
-    IRInputTopologyUndefined = 0,
-    IRInputTopologyPoint = 1,
-    IRInputTopologyLine = 2,
-    IRInputTopologyTriangle = 3,
-    IRInputTopologyPatch = 4,
+    Undefined = 0,
+    Point = 1,
+    Line = 2,
+    Triangle = 3,
+    Patch = 4,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -325,17 +323,16 @@ pub enum IRTessellatorOutputPrimitive {
     IRTessellatorOutputTriangleCCW = 4,
 }
 impl IRRootDescriptorFlags {
-    pub const IRRootDescriptorFlagNone: IRRootDescriptorFlags = IRRootDescriptorFlags(0);
+    pub const None: IRRootDescriptorFlags = IRRootDescriptorFlags(0);
 }
 impl IRRootDescriptorFlags {
-    pub const IRRootDescriptorFlagDataVolatile: IRRootDescriptorFlags = IRRootDescriptorFlags(2);
+    pub const DataVolatile: IRRootDescriptorFlags = IRRootDescriptorFlags(2);
 }
 impl IRRootDescriptorFlags {
-    pub const IRRootDescriptorFlagDataStaticWhileSetAtExecute: IRRootDescriptorFlags =
-        IRRootDescriptorFlags(4);
+    pub const DataStaticWhileSetAtExecute: IRRootDescriptorFlags = IRRootDescriptorFlags(4);
 }
 impl IRRootDescriptorFlags {
-    pub const IRRootDescriptorFlagDataStatic: IRRootDescriptorFlags = IRRootDescriptorFlags(8);
+    pub const DataStatic: IRRootDescriptorFlags = IRRootDescriptorFlags(8);
 }
 impl ::std::ops::BitOr<IRRootDescriptorFlags> for IRRootDescriptorFlags {
     type Output = Self;
@@ -367,54 +364,43 @@ impl ::std::ops::BitAndAssign for IRRootDescriptorFlags {
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct IRRootDescriptorFlags(pub ::std::os::raw::c_uint);
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagNone: IRRootSignatureFlags = IRRootSignatureFlags(0);
+    pub const None: IRRootSignatureFlags = IRRootSignatureFlags(0);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagAllowInputAssemblerInputLayout: IRRootSignatureFlags =
-        IRRootSignatureFlags(1);
+    pub const AllowInputAssemblerInputLayout: IRRootSignatureFlags = IRRootSignatureFlags(1);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyVertexShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(2);
+    pub const DenyVertexShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(2);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyHullShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(4);
+    pub const DenyHullShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(4);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyDomainShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(8);
+    pub const DenyDomainShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(8);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyGeometryShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(16);
+    pub const DenyGeometryShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(16);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyPixelShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(32);
+    pub const DenyPixelShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(32);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagAllowStreamOutput: IRRootSignatureFlags = IRRootSignatureFlags(64);
+    pub const AllowStreamOutput: IRRootSignatureFlags = IRRootSignatureFlags(64);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagLocalRootSignature: IRRootSignatureFlags =
-        IRRootSignatureFlags(128);
+    pub const LocalRootSignature: IRRootSignatureFlags = IRRootSignatureFlags(128);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyAmplificationShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(256);
+    pub const DenyAmplificationShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(256);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagDenyMeshShaderRootAccess: IRRootSignatureFlags =
-        IRRootSignatureFlags(512);
+    pub const DenyMeshShaderRootAccess: IRRootSignatureFlags = IRRootSignatureFlags(512);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagCBVSRVUAVHeapDirectlyIndexed: IRRootSignatureFlags =
-        IRRootSignatureFlags(1024);
+    pub const CBVSRVUAVHeapDirectlyIndexed: IRRootSignatureFlags = IRRootSignatureFlags(1024);
 }
 impl IRRootSignatureFlags {
-    pub const IRRootSignatureFlagSamplerHeapDirectlyIndexed: IRRootSignatureFlags =
-        IRRootSignatureFlags(2048);
+    pub const SamplerHeapDirectlyIndexed: IRRootSignatureFlags = IRRootSignatureFlags(2048);
 }
 impl ::std::ops::BitOr<IRRootSignatureFlags> for IRRootSignatureFlags {
     type Output = Self;
@@ -448,86 +434,86 @@ pub struct IRRootSignatureFlags(pub ::std::os::raw::c_uint);
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRShaderVisibility {
-    IRShaderVisibilityAll = 0,
-    IRShaderVisibilityVertex = 1,
-    IRShaderVisibilityHull = 2,
-    IRShaderVisibilityDomain = 3,
-    IRShaderVisibilityGeometry = 4,
-    IRShaderVisibilityPixel = 5,
-    IRShaderVisibilityAmplification = 6,
-    IRShaderVisibilityMesh = 7,
+    All = 0,
+    Vertex = 1,
+    Hull = 2,
+    Domain = 3,
+    Geometry = 4,
+    Pixel = 5,
+    Amplification = 6,
+    Mesh = 7,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRTessellatorDomain {
-    IRTessellatorDomainUndefined = 0,
-    IRTessellatorDomainIsoline = 1,
-    IRTessellatorDomainTri = 2,
-    IRTessellatorDomainQuad = 3,
+    Undefined = 0,
+    Isoline = 1,
+    Tri = 2,
+    Quad = 3,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRTessellatorPartitioning {
-    IRTessellatorPartitioningUndefined = 0,
-    IRTessellatorPartitioningInteger = 1,
-    IRTessellatorPartitioningPow2 = 2,
-    IRTessellatorPartitioningFractionalOdd = 3,
-    IRTessellatorPartitioningFractionalEven = 4,
+    Undefined = 0,
+    Integer = 1,
+    Pow2 = 2,
+    FractionalOdd = 3,
+    FractionalEven = 4,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRTextureAddressMode {
-    IRTextureAddressModeWrap = 1,
-    IRTextureAddressModeMirror = 2,
-    IRTextureAddressModeClamp = 3,
-    IRTextureAddressModeBorder = 4,
-    IRTextureAddressModeMirrorOnce = 5,
+    Wrap = 1,
+    Mirror = 2,
+    Clamp = 3,
+    Border = 4,
+    MirrorOnce = 5,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRShaderStage {
-    IRShaderStageInvalid = 0,
-    IRShaderStageVertex = 1,
-    IRShaderStageFragment = 2,
-    IRShaderStageHull = 3,
-    IRShaderStageDomain = 4,
-    IRShaderStageMesh = 5,
-    IRShaderStageAmplification = 6,
-    IRShaderStageGeometry = 7,
-    IRShaderStageCompute = 8,
-    IRShaderStageClosestHit = 9,
-    IRShaderStageIntersection = 10,
-    IRShaderStageAnyHit = 11,
-    IRShaderStageMiss = 12,
-    IRShaderStageRayGeneration = 13,
-    IRShaderStageCallable = 14,
-    IRShaderStageStreamOut = 15,
-    IRShaderStageStageIn = 16,
+    Invalid = 0,
+    Vertex = 1,
+    Fragment = 2,
+    Hull = 3,
+    Domain = 4,
+    Mesh = 5,
+    Amplification = 6,
+    Geometry = 7,
+    Compute = 8,
+    ClosestHit = 9,
+    Intersection = 10,
+    AnyHit = 11,
+    Miss = 12,
+    RayGeneration = 13,
+    Callable = 14,
+    StreamOut = 15,
+    StageIn = 16,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRObjectType {
-    IRObjectTypeDXILBytecode = 0,
-    IRObjectTypeMetalIRObject = 1,
+    DXILBytecode = 0,
+    MetalIRObject = 1,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRResourceType {
-    IRResourceTypeTable = 0,
-    IRResourceTypeConstant = 1,
-    IRResourceTypeCBV = 2,
-    IRResourceTypeSRV = 3,
-    IRResourceTypeUAV = 4,
-    IRResourceTypeSampler = 5,
-    IRResourceTypeInvalid = 6,
+    Table = 0,
+    Constant = 1,
+    CBV = 2,
+    SRV = 3,
+    UAV = 4,
+    Sampler = 5,
+    Invalid = 6,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRDescriptorRangeType {
-    IRDescriptorRangeTypeSRV = 0,
-    IRDescriptorRangeTypeUAV = 1,
-    IRDescriptorRangeTypeCBV = 2,
-    IRDescriptorRangeTypeSampler = 3,
+    SRV = 0,
+    UAV = 1,
+    CBV = 2,
+    Sampler = 3,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -567,18 +553,18 @@ pub struct IRRootDescriptor {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRStripCutIndex {
-    IRStripCutIndexDisabled = 0,
-    IRStripCutIndex0xFFFF = 1,
-    IRStripCutIndex0xFFFFFFFF = 2,
+    Disabled = 0,
+    _0xFFFF = 1,
+    _0xFFFFFFFF = 2,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRRootParameterType {
-    IRRootParameterTypeDescriptorTable = 0,
-    IRRootParameterType32BitConstants = 1,
-    IRRootParameterTypeCBV = 2,
-    IRRootParameterTypeSRV = 3,
-    IRRootParameterTypeUAV = 4,
+    DescriptorTable = 0,
+    _32BitConstants = 1,
+    CBV = 2,
+    SRV = 3,
+    UAV = 4,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -597,32 +583,30 @@ pub union IRRootParameter_u {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRStaticBorderColor {
-    IRStaticBorderColorTransparentBlack = 0,
-    IRStaticBorderColorOpaqueBlack = 1,
-    IRStaticBorderColorOpaqueWhite = 2,
+    TransparentBlack = 0,
+    OpaqueBlack = 1,
+    OpaqueWhite = 2,
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagNone: IRCompatibilityFlags = IRCompatibilityFlags(0);
+    pub const None: IRCompatibilityFlags = IRCompatibilityFlags(0);
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagBoundsCheck: IRCompatibilityFlags = IRCompatibilityFlags(1);
+    pub const BoundsCheck: IRCompatibilityFlags = IRCompatibilityFlags(1);
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagVertexPositionInfToNan: IRCompatibilityFlags =
-        IRCompatibilityFlags(2);
+    pub const VertexPositionInfToNan: IRCompatibilityFlags = IRCompatibilityFlags(2);
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagTextureMinLODClamp: IRCompatibilityFlags = IRCompatibilityFlags(4);
+    pub const TextureMinLODClamp: IRCompatibilityFlags = IRCompatibilityFlags(4);
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagSamplerLODBias: IRCompatibilityFlags = IRCompatibilityFlags(8);
+    pub const SamplerLODBias: IRCompatibilityFlags = IRCompatibilityFlags(8);
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagPositionInvariance: IRCompatibilityFlags =
-        IRCompatibilityFlags(16);
+    pub const PositionInvariance: IRCompatibilityFlags = IRCompatibilityFlags(16);
 }
 impl IRCompatibilityFlags {
-    pub const IRCompatibilityFlagSampleNanToZero: IRCompatibilityFlags = IRCompatibilityFlags(32);
+    pub const SampleNanToZero: IRCompatibilityFlags = IRCompatibilityFlags(32);
 }
 impl ::std::ops::BitOr<IRCompatibilityFlags> for IRCompatibilityFlags {
     type Output = Self;
@@ -671,14 +655,13 @@ pub struct IRStaticSamplerDescriptor {
     pub ShaderVisibility: IRShaderVisibility,
 }
 impl IRRootSignatureVersion {
-    pub const IRRootSignatureVersion_1_0: IRRootSignatureVersion =
-        IRRootSignatureVersion::IRRootSignatureVersion_1;
+    pub const _1_0: IRRootSignatureVersion = IRRootSignatureVersion::_1;
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRRootSignatureVersion {
-    IRRootSignatureVersion_1 = 1,
-    IRRootSignatureVersion_1_1 = 2,
+    _1 = 1,
+    _1_1 = 2,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -767,7 +750,7 @@ pub struct IRInputLayoutDescriptor1 {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRInputLayoutDescriptorVersion {
-    IRInputLayoutDescriptorVersion_1 = 1,
+    _1 = 1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -783,20 +766,17 @@ pub union IRVersionedInputLayoutDescriptor_u {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRHitGroupType {
-    IRHitGroupTypeTriangles = 0,
-    IRHitGroupTypeProceduralPrimitive = 1,
+    Triangles = 0,
+    ProceduralPrimitive = 1,
 }
 impl IRRaytracingPipelineFlags {
-    pub const IRRaytracingPipelineFlagNone: IRRaytracingPipelineFlags =
-        IRRaytracingPipelineFlags(0);
+    pub const None: IRRaytracingPipelineFlags = IRRaytracingPipelineFlags(0);
 }
 impl IRRaytracingPipelineFlags {
-    pub const IRRaytracingPipelineFlagSkipTriangles: IRRaytracingPipelineFlags =
-        IRRaytracingPipelineFlags(256);
+    pub const SkipTriangles: IRRaytracingPipelineFlags = IRRaytracingPipelineFlags(256);
 }
 impl IRRaytracingPipelineFlags {
-    pub const IRRaytracingPipelineFlagSkipProceduralPrimitives: IRRaytracingPipelineFlags =
-        IRRaytracingPipelineFlags(512);
+    pub const SkipProceduralPrimitives: IRRaytracingPipelineFlags = IRRaytracingPipelineFlags(512);
 }
 impl ::std::ops::BitOr<IRRaytracingPipelineFlags> for IRRaytracingPipelineFlags {
     type Output = Self;
@@ -830,51 +810,46 @@ pub struct IRRaytracingPipelineFlags(pub ::std::os::raw::c_uint);
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRErrorCode {
-    IRErrorCodeNoError = 0,
-    IRErrorCodeShaderRequiresRootSignature = 1,
-    IRErrorCodeUnrecognizedRootSignatureDescriptor = 2,
-    IRErrorCodeUnrecognizedParameterTypeInRootSignature = 3,
-    IRErrorCodeResourceNotReferencedByRootSignature = 4,
-    IRErrorCodeShaderIncompatibleWithDualSourceBlending = 5,
-    IRErrorCodeUnsupportedWaveSize = 6,
-    IRErrorCodeUnsupportedInstruction = 7,
-    IRErrorCodeCompilationError = 8,
-    IRErrorCodeFailedToSynthesizeStageInFunction = 9,
-    IRErrorCodeFailedToSynthesizeStreamOutFunction = 10,
-    IRErrorCodeFailedToSynthesizeIndirectIntersectionFunction = 11,
-    IRErrorCodeUnableToVerifyModule = 12,
-    IRErrorCodeUnableToLinkModule = 13,
-    IRErrorCodeUnrecognizedDXILHeader = 14,
-    IRErrorCodeInvalidRaytracingAttribute = 15,
-    IRErrorCodeUnknown = 16,
+    NoError = 0,
+    ShaderRequiresRootSignature = 1,
+    UnrecognizedRootSignatureDescriptor = 2,
+    UnrecognizedParameterTypeInRootSignature = 3,
+    ResourceNotReferencedByRootSignature = 4,
+    ShaderIncompatibleWithDualSourceBlending = 5,
+    UnsupportedWaveSize = 6,
+    UnsupportedInstruction = 7,
+    CompilationError = 8,
+    FailedToSynthesizeStageInFunction = 9,
+    FailedToSynthesizeStreamOutFunction = 10,
+    FailedToSynthesizeIndirectIntersectionFunction = 11,
+    UnableToVerifyModule = 12,
+    UnableToLinkModule = 13,
+    UnrecognizedDXILHeader = 14,
+    InvalidRaytracingAttribute = 15,
+    Unknown = 16,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRBytecodeOwnership {
     #[doc = " Do not take ownership."]
-    IRBytecodeOwnershipNone = 0,
+    None = 0,
     #[doc = " Copy the bytecode."]
-    IRBytecodeOwnershipCopy = 1,
+    Copy = 1,
 }
 impl IRCompilerValidationFlags {
-    pub const IRCompilerValidationFlagNone: IRCompilerValidationFlags =
-        IRCompilerValidationFlags(0);
+    pub const None: IRCompilerValidationFlags = IRCompilerValidationFlags(0);
 }
 impl IRCompilerValidationFlags {
-    pub const IRCompilerValidationFlagValidateRawRootResources: IRCompilerValidationFlags =
-        IRCompilerValidationFlags(1);
+    pub const ValidateRawRootResources: IRCompilerValidationFlags = IRCompilerValidationFlags(1);
 }
 impl IRCompilerValidationFlags {
-    pub const IRCompilerValidationFlagValidateAllResourcesBound: IRCompilerValidationFlags =
-        IRCompilerValidationFlags(2);
+    pub const ValidateAllResourcesBound: IRCompilerValidationFlags = IRCompilerValidationFlags(2);
 }
 impl IRCompilerValidationFlags {
-    pub const IRCompilerValidationFlagValidateDXIL: IRCompilerValidationFlags =
-        IRCompilerValidationFlags(4);
+    pub const ValidateDXIL: IRCompilerValidationFlags = IRCompilerValidationFlags(4);
 }
 impl IRCompilerValidationFlags {
-    pub const IRCompilerValidationFlagAll: IRCompilerValidationFlags =
-        IRCompilerValidationFlags(-1);
+    pub const All: IRCompilerValidationFlags = IRCompilerValidationFlags(-1);
 }
 impl ::std::ops::BitOr<IRCompilerValidationFlags> for IRCompilerValidationFlags {
     type Output = Self;
@@ -908,47 +883,47 @@ pub struct IRCompilerValidationFlags(pub ::std::os::raw::c_int);
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRStageInCodeGenerationMode {
-    IRStageInCodeGenerationModeUseMetalVertexFetch = 0,
-    IRStageInCodeGenerationModeUseSeparateStageInFunction = 1,
+    UseMetalVertexFetch = 0,
+    UseSeparateStageInFunction = 1,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRDualSourceBlendingConfiguration {
-    IRDualSourceBlendingConfigurationDecideAtRuntime = 0,
-    IRDualSourceBlendingConfigurationForceEnabled = 1,
-    IRDualSourceBlendingConfigurationForceDisabled = 2,
+    DecideAtRuntime = 0,
+    ForceEnabled = 1,
+    ForceDisabled = 2,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRDepthFeedbackConfiguration {
-    IRDepthFeedbackConfigurationDecideAtRuntime = 0,
-    IRDepthFeedbackConfigurationForceEnabled = 1,
-    IRDepthFeedbackConfigurationForceDisabled = 2,
+    DecideAtRuntime = 0,
+    ForceEnabled = 1,
+    ForceDisabled = 2,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRGPUFamily {
-    IRGPUFamilyApple6 = 1006,
-    IRGPUFamilyApple7 = 1007,
-    IRGPUFamilyApple8 = 1008,
-    IRGPUFamilyApple9 = 1009,
-    IRGPUFamilyMetal3 = 5001,
+    Apple6 = 1006,
+    Apple7 = 1007,
+    Apple8 = 1008,
+    Apple9 = 1009,
+    Metal3 = 5001,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IROperatingSystem {
-    IROperatingSystem_macOS = 0,
-    IROperatingSystem_iOS = 1,
-    IROperatingSystem_tvOS = 2,
-    IROperatingSystem_iOSSimulator = 3,
+    macOS = 0,
+    iOS = 1,
+    tvOS = 2,
+    iOSSimulator = 3,
 }
 #[repr(u32)]
 #[doc = " Function constant types. Values match MTLDataType enum."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRFunctionConstantType {
-    IRFunctionConstantTypeBool = 53,
-    IRFunctionConstantTypeInt = 29,
-    IRFunctionConstantTypeFloat = 3,
+    Bool = 53,
+    Int = 29,
+    Float = 3,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -959,7 +934,7 @@ pub struct IRFunctionConstant {
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRReflectionVersion {
-    IRReflectionVersion_1_0 = 1,
+    _1_0 = 1,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1105,10 +1080,10 @@ pub union IRVersionedDSInfo_u {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRMeshShaderPrimitiveTopology {
-    IRMeshShaderPrimitiveTopologyPoint = 0,
-    IRMeshShaderPrimitiveTopologyLine = 1,
-    IRMeshShaderPrimitiveTopologyTriangle = 2,
-    IRMeshShaderPrimitiveTopologyUndefined = 3,
+    Point = 0,
+    Line = 1,
+    Triangle = 2,
+    Undefined = 3,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

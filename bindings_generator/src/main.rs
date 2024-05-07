@@ -25,6 +25,7 @@ fn main() {
         .allowlist_type("IR\\w+")
         .allowlist_function("IR\\w+")
         .anon_fields_prefix("u_")
+        .prepend_enum_name(false)
         // Not in the DLLs provided by Apple
         .blocklist_item("IRMetalLibSynthesizeIntersectionWrapperFunction")
         .generate()
@@ -33,7 +34,7 @@ fn main() {
         .expect("Couldn't write bindings!");
 }
 
-use bindgen::callbacks::ParseCallbacks;
+use bindgen::callbacks::{EnumVariantValue, ParseCallbacks};
 
 #[derive(Debug)]
 struct RenameCallback;
@@ -41,5 +42,30 @@ impl ParseCallbacks for RenameCallback {
     fn item_name(&self, item: &str) -> Option<String> {
         item.strip_suffix("__bindgen_ty_1")
             .map(|name| format!("{name}_u"))
+    }
+
+    fn enum_variant_name(
+        &self,
+        enum_name: Option<&str>,
+        original_variant_name: &str,
+        _variant_value: EnumVariantValue,
+    ) -> Option<String> {
+        // Remove the enum name from the variant name:
+        // `IRShaderStage::IRShaderStageVertex` -> `IRShaderStage::Vertex`
+        if let Some(enum_name) = enum_name {
+            let enum_name = enum_name
+                .strip_prefix("enum ")
+                .unwrap()
+                .replace("Flags", "Flag");
+            let new_name = original_variant_name
+                .strip_prefix(&enum_name)
+                .unwrap_or(original_variant_name);
+            let mut new_name = new_name.strip_prefix("_").unwrap_or(new_name).to_string();
+            if new_name.chars().next().unwrap().is_digit(10) {
+                new_name.insert(0, '_');
+            }
+            return Some(new_name);
+        }
+        None
     }
 }
