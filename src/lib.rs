@@ -13,16 +13,8 @@ use std::{
     clippy::too_many_arguments,
     clippy::enum_variant_names
 )]
-mod bindings;
-
-pub use bindings::{
-    IRCSInfo_1_0, IRComparisonFunction, IRDescriptorRangeType, IRFilter, IRHitGroupType,
-    IRObjectType, IRRaytracingPipelineFlags, IRReflectionVersion, IRResourceLocation,
-    IRResourceType, IRRootConstants, IRRootParameter1, IRRootParameter1_u, IRRootParameterType,
-    IRRootSignatureDescriptor1, IRRootSignatureFlags, IRRootSignatureVersion, IRShaderStage,
-    IRShaderVisibility, IRStaticBorderColor, IRStaticSamplerDescriptor, IRTextureAddressMode,
-    IRVersionedCSInfo, IRVersionedRootSignatureDescriptor, IRVersionedRootSignatureDescriptor_u,
-};
+pub mod bindings;
+pub use bindings as ffi;
 
 pub struct IRShaderReflection {
     me: *mut bindings::IRShaderReflection,
@@ -48,8 +40,8 @@ impl IRShaderReflection {
 
     pub fn get_compute_info(
         &self,
-        version: IRReflectionVersion,
-    ) -> Result<IRVersionedCSInfo, Box<dyn std::error::Error>> {
+        version: ffi::IRReflectionVersion,
+    ) -> Result<ffi::IRVersionedCSInfo, Box<dyn std::error::Error>> {
         let mut info = MaybeUninit::uninit();
         if unsafe {
             self.funcs
@@ -92,17 +84,17 @@ impl IRObject {
         }
     }
 
-    pub fn get_type(&self) -> IRObjectType {
+    pub fn get_type(&self) -> ffi::IRObjectType {
         unsafe { self.funcs.IRObjectGetType(self.me) }
     }
 
-    pub fn get_metal_ir_shader_stage(&self) -> IRShaderStage {
+    pub fn get_metal_ir_shader_stage(&self) -> ffi::IRShaderStage {
         unsafe { self.funcs.IRObjectGetMetalIRShaderStage(self.me) }
     }
 
     pub fn get_metal_lib_binary(
         &self,
-        shader_stage: IRShaderStage,
+        shader_stage: ffi::IRShaderStage,
         dest_lib: &mut IRMetalLibBinary,
     ) -> bool {
         unsafe {
@@ -113,7 +105,7 @@ impl IRObject {
 
     pub fn get_reflection(
         &self,
-        shader_stage: IRShaderStage,
+        shader_stage: ffi::IRShaderStage,
         reflection: &mut IRShaderReflection,
     ) -> bool {
         unsafe {
@@ -170,7 +162,7 @@ impl Drop for IRRootSignature {
 impl IRRootSignature {
     pub fn create_from_descriptor(
         compiler: &IRCompiler,
-        desc: &IRVersionedRootSignatureDescriptor,
+        desc: &ffi::IRVersionedRootSignatureDescriptor,
     ) -> Result<IRRootSignature, Box<dyn std::error::Error>> {
         unsafe {
             let mut error = std::ptr::null_mut();
