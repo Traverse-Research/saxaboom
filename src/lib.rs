@@ -11,7 +11,8 @@ use std::{
     non_camel_case_types,
     non_snake_case,
     clippy::too_many_arguments,
-    clippy::enum_variant_names
+    clippy::enum_variant_names,
+    clippy::missing_safety_doc
 )]
 pub mod bindings;
 pub use bindings as ffi;
