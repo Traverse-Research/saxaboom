@@ -19,7 +19,7 @@
 #ifndef IRVERSION_H
 #define IRVERSION_H
 
-#define IR_VERSION_MAJOR 0
+#define IR_VERSION_MAJOR 1
 #define IR_VERSION_MINOR 1
 #define IR_VERSION_PATCH 0
 

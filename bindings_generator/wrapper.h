@@ -1,6 +1,3 @@
-
-// This wrapper #includes the metal_irconverter header with a few tweaks to make bindgen happy
-
 // Bindgen produces better output when building as C and not C++.
 typedef struct IRError IRError;
 typedef struct IRRootSignature IRRootSignature;
