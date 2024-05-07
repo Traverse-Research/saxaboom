@@ -179,9 +179,9 @@ impl IRRootSignature {
     }
 }
 
-/// [IRCompilerFactory] is used to load the metal_irconverter dynamic library and holds its functions in an Arc.
-/// Since [IRCompiler] is not thread-safe, this struct provides an interface to create [IRCompiler] instances.
-/// This way, the library only has to be loaded once, but each thread can have its own [IRCompiler] instance.
+/// [`IRCompilerFactory`] is used to load the `metal_irconverter` dynamic library and holds its functions in an [`Arc`].
+/// Since [`IRCompiler`] is not thread-safe, this struct provides an interface to create [`IRCompiler`] instances.
+/// This way, the library only has to be loaded once, but each thread can have its own [`IRCompiler`] instance.
 pub struct IRCompilerFactory {
     funcs: Arc<bindings::metal_irconverter>,
 }
