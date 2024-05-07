@@ -3,7 +3,7 @@ use saxaboom::{
 };
 
 fn create_static_sampler(
-    min_mag_mip_mode: saxaboom::ffi::IRFilter,
+    min_mag_mip_mode: ffi::IRFilter,
     address_mode: ffi::IRTextureAddressMode,
     index: u32,
     anisotropy: Option<u32>,
