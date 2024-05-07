@@ -9,7 +9,7 @@ repository = "https://github.com/Traverse-Research/saxaboom"
 description = "Binding library for metal_irconverter"
 include = ["src", "LICENSE", "CONTRIBUTING.md"]
 categories = ["api-bindings", "external-ffi-bindings", "graphics"]
-keywords = ["metal", "shader converter", "irconverter", "apple"]
+keywords = ["metal", "shader", "metal_irconverter", "apple"]
 
 [workspace]
 members = [
