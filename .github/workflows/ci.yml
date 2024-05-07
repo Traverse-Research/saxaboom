@@ -14,7 +14,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Cargo test
         run: cargo test --workspace
-        
+
   generate-rust:
     name: Generate Rust crate
     runs-on: ubuntu-latest
@@ -31,4 +31,3 @@ jobs:
           path: src/
       - name: Diff generated Rust code
         run: test -z "$(git status --porcelain)" || (echo "::error::Generated files are different, please regenerate with cargo run -p generate_bindings!"; git diff; false)
-        
