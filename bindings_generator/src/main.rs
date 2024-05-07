@@ -60,7 +60,7 @@ impl ParseCallbacks for RenameCallback {
             let new_name = original_variant_name
                 .strip_prefix(&enum_name)
                 .unwrap_or(original_variant_name);
-            let mut new_name = new_name.strip_prefix("_").unwrap_or(new_name).to_string();
+            let mut new_name = new_name.strip_prefix('_').unwrap_or(new_name).to_string();
             if new_name.chars().next().unwrap().is_ascii_digit() {
                 new_name.insert(0, '_');
             }
