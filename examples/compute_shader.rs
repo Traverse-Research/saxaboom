@@ -88,7 +88,7 @@ fn create_root_parameters() -> Vec<ffi::IRRootParameter1> {
             Constants: ffi::IRRootConstants {
                 RegisterSpace: 0,
                 ShaderRegister: 0,
-                Num32BitValues: 7, // debug has 6
+                Num32BitValues: 7,
             },
         },
     };
