@@ -1,11 +1,10 @@
 #![doc = include_str!("../README.md")]
-#![deny(clippy::use_self, clippy::unwrap_used)]
+#![deny(clippy::use_self, clippy::unwrap_used, elided_lifetimes_in_paths)]
 use std::{
     ffi::{c_char, CStr, OsStr},
     fmt,
     mem::MaybeUninit,
     ptr::NonNull,
-    sync::Arc,
 };
 
 #[allow(
@@ -22,26 +21,26 @@ pub mod bindings;
 pub use bindings as ffi;
 use thiserror::Error;
 
-pub struct IRShaderReflection {
+pub struct IRShaderReflection<'lib> {
     me: NonNull<bindings::IRShaderReflection>,
-    funcs: Arc<bindings::metal_irconverter>,
+    funcs: &'lib bindings::metal_irconverter,
 }
 
-impl Drop for IRShaderReflection {
+impl<'lib> Drop for IRShaderReflection<'lib> {
     #[doc(alias = "IRShaderReflectionDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRShaderReflectionDestroy(self.me.as_ptr()) }
     }
 }
 
-impl IRShaderReflection {
+impl<'lib> IRShaderReflection<'lib> {
     #[doc(alias = "IRShaderReflectionCreate")]
-    pub fn new(compiler: &IRCompiler) -> Self {
+    pub fn new(compiler: &'lib IRCompiler<'lib>) -> Self {
         let me = NonNull::new(unsafe { compiler.funcs.IRShaderReflectionCreate() })
             .expect("Failed to create IRShaderReflection");
         Self {
             me,
-            funcs: compiler.funcs.clone(),
+            funcs: compiler.funcs,
         }
     }
 
@@ -72,22 +71,22 @@ pub struct MetalLibNoBytecodeFoundError {
     stage: ffi::IRShaderStage,
 }
 
-pub struct IRObject<'a> {
+pub struct IRObject<'lib> {
     me: NonNull<bindings::IRObject>,
-    funcs: Arc<bindings::metal_irconverter>,
-    compiler: &'a IRCompiler,
+    funcs: &'lib bindings::metal_irconverter,
+    compiler: &'lib IRCompiler<'lib>,
 }
 
-impl<'a> Drop for IRObject<'a> {
+impl<'lib> Drop for IRObject<'lib> {
     #[doc(alias = "IRObjectDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRObjectDestroy(self.me.as_ptr()) }
     }
 }
 
-impl<'a> IRObject<'a> {
+impl<'lib> IRObject<'lib> {
     #[doc(alias = "IRObjectCreateFromDXIL")]
-    pub fn create_from_dxil(compiler: &'a IRCompiler, bytecode: &[u8]) -> Self {
+    pub fn create_from_dxil(compiler: &'lib IRCompiler<'lib>, bytecode: &[u8]) -> Self {
         unsafe {
             let me = NonNull::new(compiler.funcs.IRObjectCreateFromDXIL(
                 bytecode.as_ptr(),
@@ -100,7 +99,7 @@ impl<'a> IRObject<'a> {
 
             Self {
                 me,
-                funcs: compiler.funcs.clone(),
+                funcs: compiler.funcs,
                 compiler,
             }
         }
@@ -125,7 +124,7 @@ impl<'a> IRObject<'a> {
     }
 
     #[doc(alias = "IRObjectGetMetalLibBinary")]
-    pub fn metal_lib_binary(&self) -> Result<IRMetalLibBinary, MetalLibNoBytecodeFoundError> {
+    pub fn metal_lib_binary(&self) -> Result<IRMetalLibBinary<'lib>, MetalLibNoBytecodeFoundError> {
         let mtl_lib = IRMetalLibBinary::new(self.compiler);
         if unsafe {
             self.funcs.IRObjectGetMetalLibBinary(
@@ -144,7 +143,7 @@ impl<'a> IRObject<'a> {
     }
 
     #[doc(alias = "IRObjectGetReflection")]
-    pub fn reflection(&self) -> Option<IRShaderReflection> {
+    pub fn reflection(&self) -> Option<IRShaderReflection<'lib>> {
         let reflection = IRShaderReflection::new(self.compiler);
         if unsafe {
             self.funcs.IRObjectGetReflection(
@@ -160,27 +159,27 @@ impl<'a> IRObject<'a> {
     }
 }
 
-pub struct IRMetalLibBinary {
+pub struct IRMetalLibBinary<'lib> {
     me: NonNull<bindings::IRMetalLibBinary>,
-    funcs: Arc<bindings::metal_irconverter>,
+    funcs: &'lib bindings::metal_irconverter,
 }
 
-impl Drop for IRMetalLibBinary {
+impl<'lib> Drop for IRMetalLibBinary<'lib> {
     #[doc(alias = "IRMetalLibBinaryDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRMetalLibBinaryDestroy(self.me.as_ptr()) }
     }
 }
 
-impl IRMetalLibBinary {
+impl<'lib> IRMetalLibBinary<'lib> {
     #[doc(alias = "IRMetalLibBinaryCreate")]
-    pub fn new(compiler: &IRCompiler) -> Self {
+    pub fn new(compiler: &IRCompiler<'lib>) -> Self {
         unsafe {
             let me = NonNull::new(compiler.funcs.IRMetalLibBinaryCreate())
                 .expect("Failed to create empty IRMetalLibBinary");
             Self {
                 me,
-                funcs: compiler.funcs.clone(),
+                funcs: compiler.funcs,
             }
         }
     }
@@ -199,12 +198,12 @@ impl IRMetalLibBinary {
     }
 }
 
-pub struct IRRootSignature {
+pub struct IRRootSignature<'lib> {
     me: NonNull<bindings::IRRootSignature>,
-    funcs: Arc<bindings::metal_irconverter>,
+    funcs: &'lib bindings::metal_irconverter,
 }
 
-impl Drop for IRRootSignature {
+impl<'lib> Drop for IRRootSignature<'lib> {
     #[doc(alias = "IRRootSignatureDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRRootSignatureDestroy(self.me.as_ptr()) }
@@ -213,14 +212,14 @@ impl Drop for IRRootSignature {
 
 #[derive(Error, Debug)]
 #[error("IRRootSignature creation failed: {0:?}")]
-pub struct RootSignatureError(IRError);
+pub struct RootSignatureError<'lib>(IRError<'lib>);
 
-impl IRRootSignature {
+impl<'lib> IRRootSignature<'lib> {
     #[doc(alias = "IRRootSignatureCreateFromDescriptor")]
     pub fn create_from_descriptor(
-        compiler: &IRCompiler,
+        compiler: &'lib IRCompiler<'lib>,
         desc: &ffi::IRVersionedRootSignatureDescriptor,
-    ) -> Result<Self, RootSignatureError> {
+    ) -> Result<Self, RootSignatureError<'lib>> {
         let mut error = std::ptr::null_mut();
 
         let me = NonNull::new(unsafe {
@@ -230,7 +229,7 @@ impl IRRootSignature {
         });
 
         if let Some(error) = NonNull::new(error) {
-            let error = unsafe { IRError::from_ptr(error, compiler.funcs.clone()) };
+            let error = unsafe { IRError::from_ptr(error, compiler.funcs) };
             return Err(RootSignatureError(error));
         }
 
@@ -238,7 +237,7 @@ impl IRRootSignature {
             me.expect("IRRootSignatureCreateFromDescriptor should not return NULL without error");
         Ok(Self {
             me,
-            funcs: compiler.funcs.clone(),
+            funcs: compiler.funcs,
         })
     }
 
@@ -264,53 +263,53 @@ impl IRRootSignature {
 /// Since [`IRCompiler`] is not thread-safe, this struct provides an interface to create [`IRCompiler`] instances.
 /// This way, the library only has to be loaded once, but each thread can have its own [`IRCompiler`] instance.
 pub struct IRCompilerFactory {
-    funcs: Arc<bindings::metal_irconverter>,
+    funcs: bindings::metal_irconverter,
 }
 
 impl IRCompilerFactory {
     pub fn new(lib_path: impl AsRef<OsStr>) -> Result<Self, libloading::Error> {
-        let funcs = Arc::new(unsafe { bindings::metal_irconverter::new(lib_path)? });
+        let funcs = unsafe { bindings::metal_irconverter::new(lib_path)? };
         Ok(Self { funcs })
     }
 
     pub fn from_library(lib: libloading::Library) -> Result<Self, libloading::Error> {
-        let funcs = Arc::new(unsafe { bindings::metal_irconverter::from_library(lib)? });
+        let funcs = unsafe { bindings::metal_irconverter::from_library(lib)? };
         Ok(Self { funcs })
     }
 
     #[doc(alias = "IRCompilerCreate")]
-    pub fn create_compiler(&self) -> IRCompiler {
+    pub fn create_compiler(&self) -> IRCompiler<'_> {
         let compiler = NonNull::new(unsafe { self.funcs.IRCompilerCreate() })
             .expect("Failed to create IRCompiler");
         IRCompiler {
             me: compiler,
-            funcs: self.funcs.clone(),
+            funcs: &self.funcs,
         }
     }
 }
 
 #[derive(Error, Debug)]
 #[error("IRObject compilation failed: {0:?}")]
-pub struct CompilerError(IRError);
+pub struct CompilerError<'lib>(IRError<'lib>);
 
 /// This object is not thread-safe, refer to [the Metal shader converter documentation], the "Multithreading considerations" chapter.
 ///
 /// [the Metal shader converter documentation]: https://developer.apple.com/metal/shader-converter/
-pub struct IRCompiler {
+pub struct IRCompiler<'lib> {
     me: NonNull<bindings::IRCompiler>,
-    funcs: Arc<bindings::metal_irconverter>,
+    funcs: &'lib bindings::metal_irconverter,
 }
 
-impl Drop for IRCompiler {
+impl<'lib> Drop for IRCompiler<'lib> {
     #[doc(alias = "IRCompilerDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRCompilerDestroy(self.me.as_ptr()) }
     }
 }
 
-impl IRCompiler {
+impl<'lib> IRCompiler<'lib> {
     #[doc(alias = "IRCompilerSetGlobalRootSignature")]
-    pub fn set_global_root_signature(&mut self, root_signature: &IRRootSignature) {
+    pub fn set_global_root_signature(&mut self, root_signature: &IRRootSignature<'_>) {
         unsafe {
             self.funcs
                 .IRCompilerSetGlobalRootSignature(self.me.as_ptr(), root_signature.me.as_ptr())
@@ -352,7 +351,7 @@ impl IRCompiler {
     }
 
     #[doc(alias = "IRMetalLibSynthesizeIndirectIntersectionFunction")]
-    pub fn synthesize_indirect_intersection_function(&mut self) -> Option<IRMetalLibBinary> {
+    pub fn synthesize_indirect_intersection_function(&mut self) -> Option<IRMetalLibBinary<'lib>> {
         let target_metallib = IRMetalLibBinary::new(self);
         if unsafe {
             self.funcs.IRMetalLibSynthesizeIndirectIntersectionFunction(
@@ -367,7 +366,7 @@ impl IRCompiler {
     }
 
     #[doc(alias = "IRMetalLibSynthesizeIndirectRayDispatchFunction")]
-    pub fn synthesize_indirect_ray_dispatch_function(&mut self) -> Option<IRMetalLibBinary> {
+    pub fn synthesize_indirect_ray_dispatch_function(&mut self) -> Option<IRMetalLibBinary<'lib>> {
         let target_metallib = IRMetalLibBinary::new(self);
         if unsafe {
             self.funcs.IRMetalLibSynthesizeIndirectRayDispatchFunction(
@@ -390,11 +389,11 @@ impl IRCompiler {
     }
 
     #[doc(alias = "IRCompilerAllocCompileAndLink")]
-    pub fn alloc_compile_and_link<'a>(
-        &'a self,
+    pub fn alloc_compile_and_link(
+        &'lib self,
         entry_point: &CStr,
-        input: &IRObject<'a>,
-    ) -> Result<IRObject<'a>, CompilerError> {
+        input: &IRObject<'lib>,
+    ) -> Result<IRObject<'lib>, CompilerError<'lib>> {
         let mut error = std::ptr::null_mut();
 
         let object = NonNull::new(unsafe {
@@ -407,7 +406,7 @@ impl IRCompiler {
         });
 
         if let Some(error) = NonNull::new(error) {
-            let error = unsafe { IRError::from_ptr(error, self.funcs.clone()) };
+            let error = unsafe { IRError::from_ptr(error, self.funcs) };
             return Err(CompilerError(error));
         }
 
@@ -415,25 +414,25 @@ impl IRCompiler {
             object.expect("IRCompilerAllocCompileAndLink should not return NULL without error");
         Ok(IRObject {
             me: object,
-            funcs: input.funcs.clone(),
+            funcs: input.funcs,
             compiler: self,
         })
     }
 }
 
-pub struct IRError {
+pub struct IRError<'lib> {
     me: NonNull<bindings::IRError>,
-    funcs: Arc<bindings::metal_irconverter>,
+    funcs: &'lib bindings::metal_irconverter,
 }
 
-impl Drop for IRError {
+impl<'lib> Drop for IRError<'lib> {
     #[doc(alias = "IRErrorDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRErrorDestroy(self.me.as_ptr()) };
     }
 }
 
-impl fmt::Debug for IRError {
+impl<'lib> fmt::Debug for IRError<'lib> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("IRError")
             .field("code", &self.code())
@@ -442,10 +441,10 @@ impl fmt::Debug for IRError {
     }
 }
 
-impl IRError {
+impl<'lib> IRError<'lib> {
     unsafe fn from_ptr(
         me: NonNull<bindings::IRError>,
-        funcs: Arc<bindings::metal_irconverter>,
+        funcs: &'lib bindings::metal_irconverter,
     ) -> Self {
         Self { me, funcs }
     }
