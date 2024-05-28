@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![deny(clippy::use_self)]
 use std::{
     ffi::{CStr, CString, OsStr},
     mem::MaybeUninit,
@@ -7,13 +8,14 @@ use std::{
 };
 
 #[allow(
-    non_upper_case_globals,
+    clippy::enum_variant_names,
+    clippy::missing_safety_doc,
+    clippy::too_many_arguments,
+    clippy::use_self,
     dead_code,
     non_camel_case_types,
     non_snake_case,
-    clippy::too_many_arguments,
-    clippy::enum_variant_names,
-    clippy::missing_safety_doc
+    non_upper_case_globals
 )]
 pub mod bindings;
 pub use bindings as ffi;
@@ -34,7 +36,7 @@ impl Drop for IRShaderReflection {
 
 impl IRShaderReflection {
     #[doc(alias = "IRShaderReflectionCreate")]
-    pub fn new(compiler: &IRCompiler) -> IRShaderReflection {
+    pub fn new(compiler: &IRCompiler) -> Self {
         let me = NonNull::new(unsafe { compiler.funcs.IRShaderReflectionCreate() })
             .expect("Failed to create IRShaderReflection");
         Self {
@@ -166,7 +168,7 @@ impl Drop for IRMetalLibBinary {
 
 impl IRMetalLibBinary {
     #[doc(alias = "IRMetalLibBinaryCreate")]
-    pub fn new(compiler: &IRCompiler) -> IRMetalLibBinary {
+    pub fn new(compiler: &IRCompiler) -> Self {
         unsafe {
             let me = NonNull::new(compiler.funcs.IRMetalLibBinaryCreate())
                 .expect("Failed to create empty IRMetalLibBinary");
@@ -216,7 +218,7 @@ impl IRRootSignature {
     pub fn create_from_descriptor(
         compiler: &IRCompiler,
         desc: &ffi::IRVersionedRootSignatureDescriptor,
-    ) -> Result<IRRootSignature, RootSignatureError> {
+    ) -> Result<Self, RootSignatureError> {
         let mut error = std::ptr::null_mut();
 
         let me = NonNull::new(unsafe {
