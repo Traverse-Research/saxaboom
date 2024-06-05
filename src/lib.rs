@@ -229,7 +229,6 @@ impl IRRootSignature {
 
         // If the root signature failed to create
         if !error.is_null() {
-            // IRErrorCode is #[repr(u32)], so this transmute should be fine
             let error = IRError::from_ptr(error, compiler.funcs.clone());
             Err(RootSignatureError::CreateError(error.code()))
         } else {
