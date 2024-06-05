@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![deny(clippy::use_self)]
 use std::{
     ffi::{CStr, CString, OsStr},
     mem::MaybeUninit,
@@ -7,13 +8,14 @@ use std::{
 };
 
 #[allow(
-    non_upper_case_globals,
+    clippy::enum_variant_names,
+    clippy::missing_safety_doc,
+    clippy::too_many_arguments,
+    clippy::use_self,
     dead_code,
     non_camel_case_types,
     non_snake_case,
-    clippy::too_many_arguments,
-    clippy::enum_variant_names,
-    clippy::missing_safety_doc
+    non_upper_case_globals
 )]
 pub mod bindings;
 pub use bindings as ffi;
@@ -34,7 +36,7 @@ impl Drop for IRShaderReflection {
 
 impl IRShaderReflection {
     #[doc(alias = "IRShaderReflectionCreate")]
-    pub fn new(compiler: &IRCompiler) -> IRShaderReflection {
+    pub fn new(compiler: &IRCompiler) -> Self {
         let me = NonNull::new(unsafe { compiler.funcs.IRShaderReflectionCreate() })
             .expect("Failed to create IRShaderReflection");
         Self {
@@ -67,21 +69,22 @@ impl IRShaderReflection {
 #[error("Failed to get MetalLib bytecode from IRObject")]
 pub struct MetalLibNoBytecodeFoundError(ffi::IRObjectType, ffi::IRShaderStage);
 
-pub struct IRObject {
+pub struct IRObject<'a> {
     me: NonNull<bindings::IRObject>,
     funcs: Arc<bindings::metal_irconverter>,
+    compiler: &'a IRCompiler,
 }
 
-impl Drop for IRObject {
+impl<'a> Drop for IRObject<'a> {
     #[doc(alias = "IRObjectDestroy")]
     fn drop(&mut self) {
         unsafe { self.funcs.IRObjectDestroy(self.me.as_ptr()) }
     }
 }
 
-impl IRObject {
+impl<'a> IRObject<'a> {
     #[doc(alias = "IRObjectCreateFromDXIL")]
-    pub fn create_from_dxil(compiler: &IRCompiler, bytecode: &[u8]) -> IRObject {
+    pub fn create_from_dxil(compiler: &'a IRCompiler, bytecode: &[u8]) -> IRObject<'a> {
         unsafe {
             let me = NonNull::new(compiler.funcs.IRObjectCreateFromDXIL(
                 bytecode.as_ptr(),
@@ -93,6 +96,7 @@ impl IRObject {
             Self {
                 me,
                 funcs: compiler.funcs.clone(),
+                compiler,
             }
         }
     }
@@ -118,10 +122,9 @@ impl IRObject {
     #[doc(alias = "IRObjectGetMetalLibBinary")]
     pub fn metal_lib_binary(
         &self,
-        compiler: &IRCompiler,
         shader_stage: ffi::IRShaderStage,
     ) -> Result<IRMetalLibBinary, MetalLibNoBytecodeFoundError> {
-        let mtl_lib = IRMetalLibBinary::new(compiler);
+        let mtl_lib = IRMetalLibBinary::new(self.compiler);
         if unsafe {
             self.funcs.IRObjectGetMetalLibBinary(
                 self.me.as_ptr(),
@@ -138,12 +141,8 @@ impl IRObject {
     }
 
     #[doc(alias = "IRObjectGetReflection")]
-    pub fn reflection(
-        &self,
-        compiler: &IRCompiler,
-        shader_stage: ffi::IRShaderStage,
-    ) -> Option<IRShaderReflection> {
-        let reflection = IRShaderReflection::new(compiler);
+    pub fn reflection(&self, shader_stage: ffi::IRShaderStage) -> Option<IRShaderReflection> {
+        let reflection = IRShaderReflection::new(self.compiler);
         if unsafe {
             self.funcs
                 .IRObjectGetReflection(self.me.as_ptr(), shader_stage, reflection.me.as_ptr())
@@ -169,7 +168,7 @@ impl Drop for IRMetalLibBinary {
 
 impl IRMetalLibBinary {
     #[doc(alias = "IRMetalLibBinaryCreate")]
-    pub fn new(compiler: &IRCompiler) -> IRMetalLibBinary {
+    pub fn new(compiler: &IRCompiler) -> Self {
         unsafe {
             let me = NonNull::new(compiler.funcs.IRMetalLibBinaryCreate())
                 .expect("Failed to create empty IRMetalLibBinary");
@@ -219,7 +218,7 @@ impl IRRootSignature {
     pub fn create_from_descriptor(
         compiler: &IRCompiler,
         desc: &ffi::IRVersionedRootSignatureDescriptor,
-    ) -> Result<IRRootSignature, RootSignatureError> {
+    ) -> Result<Self, RootSignatureError> {
         let mut error = std::ptr::null_mut();
 
         let me = NonNull::new(unsafe {
@@ -399,11 +398,12 @@ impl IRCompiler {
     }
 
     #[doc(alias = "IRCompilerAllocCompileAndLink")]
-    pub fn alloc_compile_and_link(
-        &mut self,
+    pub fn alloc_compile_and_link<'a>(
+        // TODO: This was mut, why?
+        &'a self,
         entry_point: &CStr,
-        input: &IRObject,
-    ) -> Result<IRObject, CompilerError> {
+        input: &IRObject<'a>,
+    ) -> Result<IRObject<'a>, CompilerError> {
         let mut error = std::ptr::null_mut();
 
         let v = NonNull::new(unsafe {
@@ -419,6 +419,7 @@ impl IRCompiler {
             Ok(IRObject {
                 me: v.unwrap(),
                 funcs: input.funcs.clone(),
+                compiler: self,
             })
         } else {
             let error = IRError::from_ptr(error, self.funcs.clone());
