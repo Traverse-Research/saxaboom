@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![deny(clippy::use_self)]
 use std::{
-    ffi::{CStr, CString, OsStr},
+    ffi::{c_char, CStr, CString, OsStr},
     mem::MaybeUninit,
     ptr::NonNull,
     sync::Arc,
@@ -480,7 +480,7 @@ impl IRError {
             // The docs say `You must cast this pointer to the appropriate error payload struct for the error code``
             // but the example code just treats this as a char* like this: `printf("%s\n", (const char*)IRErrorGetPayload(pRootSigError));`
             // Let's assume the example code is correct
-            let payload = self.funcs.IRErrorGetPayload(self.me.as_ptr()) as *mut i8;
+            let payload = self.funcs.IRErrorGetPayload(self.me.as_ptr()) as *mut c_char;
             CString::from_raw(payload)
         }
     }
