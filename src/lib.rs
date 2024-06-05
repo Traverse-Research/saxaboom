@@ -208,7 +208,7 @@ impl Drop for IRRootSignature {
 #[derive(Error, Debug)]
 pub enum RootSignatureError {
     #[error("Failed to create IRRootSignature: {0:?}")]
-    CreateError(ffi::IRErrorCode),
+    CreateError(ffi::IRErrorCode, CString),
     #[error("Failed to create IRRootSignature")]
     Unknown,
 }
@@ -238,7 +238,10 @@ impl IRRootSignature {
             }
         } else {
             let error = IRError::from_ptr(error, compiler.funcs.clone());
-            Err(RootSignatureError::CreateError(error.code()))
+            Err(RootSignatureError::CreateError(
+                error.code(),
+                error.payload(),
+            ))
         }
     }
 
@@ -298,7 +301,7 @@ impl IRCompilerFactory {
 
 #[derive(Error, Debug)]
 #[error("Failed to compile IRObject: ({0:?})")]
-pub struct CompilerError(ffi::IRErrorCode);
+pub struct CompilerError(ffi::IRErrorCode, CString);
 
 /// This object is not thread-safe, refer to [the Metal shader converter documentation], the "Multithreading considerations" chapter.
 ///
@@ -422,7 +425,7 @@ impl IRCompiler {
             })
         } else {
             let error = IRError::from_ptr(error, self.funcs.clone());
-            Err(CompilerError(error.code()))
+            Err(CompilerError(error.code(), error.payload()))
         }
     }
 }
@@ -495,7 +498,7 @@ impl IRError {
     }
 
     #[doc(alias = "IRErrorGetPayload")]
-    pub fn _payload(&self) -> CString {
+    pub fn payload(&self) -> CString {
         unsafe {
             // The documentation is inconsistent about this function.
             // The docs say `You must cast this pointer to the appropriate error payload struct for the error code``
