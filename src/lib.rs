@@ -187,8 +187,8 @@ impl IRMetalLibBinary {
             self.funcs
                 .IRMetalLibGetBytecode(self.me.as_ptr(), bytes.as_mut_ptr())
         };
-        unsafe { bytes.set_len(written) }
         assert_eq!(written, size_in_bytes);
+        unsafe { bytes.set_len(written) }
         bytes
     }
 }
