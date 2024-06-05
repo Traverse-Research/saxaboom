@@ -341,9 +341,9 @@ impl IRCompiler {
                 self.me.as_ptr(),
                 max_attribute_size_in_bytes,
                 raytracing_pipeline_flags,
-                closest_hit_mask,
-                miss_mask,
-                any_hit_mask,
+                closest_hit_intrinsics_mask,
+                miss_intrinsics_mask,
+                any_hit_intrinsics_mask,
                 callable_args,
                 max_recursive_depth,
             )
