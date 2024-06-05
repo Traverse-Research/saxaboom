@@ -66,7 +66,7 @@ impl IRShaderReflection {
 }
 
 #[derive(Error, Debug)]
-#[error("Failed to get MetalLib bytecode from IRObject")]
+#[error("Failed to get MetalLib bytecode from IRObject: {0:?}, {1:?}")]
 pub struct MetalLibNoBytecodeFoundError(ffi::IRObjectType, ffi::IRShaderStage);
 
 pub struct IRObject<'a> {
