@@ -228,10 +228,7 @@ impl IRRootSignature {
         });
 
         // If the root signature failed to create
-        if !error.is_null() {
-            let error = IRError::from_ptr(error, compiler.funcs.clone());
-            Err(RootSignatureError::CreateError(error.code()))
-        } else {
+        if error.is_null() {
             match me {
                 Some(me) => Ok(Self {
                     me,
@@ -239,6 +236,9 @@ impl IRRootSignature {
                 }),
                 None => Err(RootSignatureError::Unknown),
             }
+        } else {
+            let error = IRError::from_ptr(error, compiler.funcs.clone());
+            Err(RootSignatureError::CreateError(error.code()))
         }
     }
 
