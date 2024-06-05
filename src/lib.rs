@@ -451,23 +451,45 @@ impl IRError {
     pub fn code(&self) -> IRErrorCode {
         let code = unsafe { self.funcs.IRErrorGetCode(self.me.as_ptr()) };
         match code {
-            0 => IRErrorCode::NoError,
-            1 => IRErrorCode::ShaderRequiresRootSignature,
-            2 => IRErrorCode::UnrecognizedRootSignatureDescriptor,
-            3 => IRErrorCode::UnrecognizedParameterTypeInRootSignature,
-            4 => IRErrorCode::ResourceNotReferencedByRootSignature,
-            5 => IRErrorCode::ShaderIncompatibleWithDualSourceBlending,
-            6 => IRErrorCode::UnsupportedWaveSize,
-            7 => IRErrorCode::UnsupportedInstruction,
-            8 => IRErrorCode::CompilationError,
-            9 => IRErrorCode::FailedToSynthesizeStageInFunction,
-            10 => IRErrorCode::FailedToSynthesizeStreamOutFunction,
-            11 => IRErrorCode::FailedToSynthesizeIndirectIntersectionFunction,
-            12 => IRErrorCode::UnableToVerifyModule,
-            13 => IRErrorCode::UnableToLinkModule,
-            14 => IRErrorCode::UnrecognizedDXILHeader,
-            15 => IRErrorCode::InvalidRaytracingAttribute,
-            16 => IRErrorCode::Unknown,
+            x if x == IRErrorCode::NoError as u32 => IRErrorCode::NoError,
+            x if x == IRErrorCode::ShaderRequiresRootSignature as u32 => {
+                IRErrorCode::ShaderRequiresRootSignature
+            }
+            x if x == IRErrorCode::UnrecognizedRootSignatureDescriptor as u32 => {
+                IRErrorCode::UnrecognizedRootSignatureDescriptor
+            }
+            x if x == IRErrorCode::UnrecognizedParameterTypeInRootSignature as u32 => {
+                IRErrorCode::UnrecognizedParameterTypeInRootSignature
+            }
+            x if x == IRErrorCode::ResourceNotReferencedByRootSignature as u32 => {
+                IRErrorCode::ResourceNotReferencedByRootSignature
+            }
+            x if x == IRErrorCode::ShaderIncompatibleWithDualSourceBlending as u32 => {
+                IRErrorCode::ShaderIncompatibleWithDualSourceBlending
+            }
+            x if x == IRErrorCode::UnsupportedWaveSize as u32 => IRErrorCode::UnsupportedWaveSize,
+            x if x == IRErrorCode::UnsupportedInstruction as u32 => {
+                IRErrorCode::UnsupportedInstruction
+            }
+            x if x == IRErrorCode::CompilationError as u32 => IRErrorCode::CompilationError,
+            x if x == IRErrorCode::FailedToSynthesizeStageInFunction as u32 => {
+                IRErrorCode::FailedToSynthesizeStageInFunction
+            }
+            x if x == IRErrorCode::FailedToSynthesizeStreamOutFunction as u32 => {
+                IRErrorCode::FailedToSynthesizeStreamOutFunction
+            }
+            x if x == IRErrorCode::FailedToSynthesizeIndirectIntersectionFunction as u32 => {
+                IRErrorCode::FailedToSynthesizeIndirectIntersectionFunction
+            }
+            x if x == IRErrorCode::UnableToVerifyModule as u32 => IRErrorCode::UnableToVerifyModule,
+            x if x == IRErrorCode::UnableToLinkModule as u32 => IRErrorCode::UnableToLinkModule,
+            x if x == IRErrorCode::UnrecognizedDXILHeader as u32 => {
+                IRErrorCode::UnrecognizedDXILHeader
+            }
+            x if x == IRErrorCode::InvalidRaytracingAttribute as u32 => {
+                IRErrorCode::InvalidRaytracingAttribute
+            }
+            x if x == IRErrorCode::Unknown as u32 => IRErrorCode::Unknown,
             _ => panic!("Invalid error code"),
         }
     }
