@@ -207,7 +207,7 @@ impl Drop for IRRootSignature {
 
 #[derive(Error, Debug)]
 pub enum RootSignatureError {
-    #[error("Failed to create IRRootSignature: {0:?}")]
+    #[error("IRRootSignature creation failed with error code {0:?}: {1:#?}")]
     CreateError(ffi::IRErrorCode, CString),
     #[error("Failed to create IRRootSignature")]
     Unknown,
@@ -300,7 +300,7 @@ impl IRCompilerFactory {
 }
 
 #[derive(Error, Debug)]
-#[error("Failed to compile IRObject: ({0:?})")]
+#[error("IRObject compilation failed with error code {0:?}: {1:#?}")]
 pub struct CompilerError(ffi::IRErrorCode, CString);
 
 /// This object is not thread-safe, refer to [the Metal shader converter documentation], the "Multithreading considerations" chapter.
