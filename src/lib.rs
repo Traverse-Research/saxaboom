@@ -1,7 +1,8 @@
 #![doc = include_str!("../README.md")]
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, clippy::unwrap_used)]
 use std::{
     ffi::{c_char, CStr, CString, OsStr},
+    fmt,
     mem::MaybeUninit,
     ptr::NonNull,
     sync::Arc,
@@ -19,7 +20,6 @@ use std::{
 )]
 pub mod bindings;
 pub use bindings as ffi;
-use ffi::IRErrorCode;
 use thiserror::Error;
 
 pub struct IRShaderReflection {
@@ -66,8 +66,11 @@ impl IRShaderReflection {
 }
 
 #[derive(Error, Debug)]
-#[error("Failed to get MetalLib bytecode from IRObject: {0:?}, {1:?}")]
-pub struct MetalLibNoBytecodeFoundError(ffi::IRObjectType, ffi::IRShaderStage);
+#[error("Failed to get MetalLib bytecode for stage `{stage:?}` from IRObject `{object_type:?}`")]
+pub struct MetalLibNoBytecodeFoundError {
+    object_type: ffi::IRObjectType,
+    stage: ffi::IRShaderStage,
+}
 
 pub struct IRObject<'a> {
     me: NonNull<bindings::IRObject>,
@@ -84,11 +87,13 @@ impl<'a> Drop for IRObject<'a> {
 
 impl<'a> IRObject<'a> {
     #[doc(alias = "IRObjectCreateFromDXIL")]
-    pub fn create_from_dxil(compiler: &'a IRCompiler, bytecode: &[u8]) -> IRObject<'a> {
+    pub fn create_from_dxil(compiler: &'a IRCompiler, bytecode: &[u8]) -> Self {
         unsafe {
             let me = NonNull::new(compiler.funcs.IRObjectCreateFromDXIL(
                 bytecode.as_ptr(),
                 bytecode.len(),
+                // TODO: This creates a copy of the data.  We could also set this to None
+                // with a PhantdomData lifetime on the incoming bytecode slice
                 bindings::IRBytecodeOwnership::Copy,
             ))
             .expect("Failed to create IRObject from DXIL");
@@ -110,7 +115,7 @@ impl<'a> IRObject<'a> {
     }
 
     #[doc(alias = "IRObjectGetType")]
-    pub fn object_type(&self) -> ffi::IRObjectType {
+    pub fn r#type(&self) -> ffi::IRObjectType {
         unsafe { self.funcs.IRObjectGetType(self.me.as_ptr()) }
     }
 
@@ -120,32 +125,33 @@ impl<'a> IRObject<'a> {
     }
 
     #[doc(alias = "IRObjectGetMetalLibBinary")]
-    pub fn metal_lib_binary(
-        &self,
-        shader_stage: ffi::IRShaderStage,
-    ) -> Result<IRMetalLibBinary, MetalLibNoBytecodeFoundError> {
+    pub fn metal_lib_binary(&self) -> Result<IRMetalLibBinary, MetalLibNoBytecodeFoundError> {
         let mtl_lib = IRMetalLibBinary::new(self.compiler);
         if unsafe {
             self.funcs.IRObjectGetMetalLibBinary(
                 self.me.as_ptr(),
-                shader_stage,
+                self.metal_ir_shader_stage(),
                 mtl_lib.me.as_ptr(),
             )
         } {
             Ok(mtl_lib)
         } else {
-            let obj_type = unsafe { self.funcs.IRObjectGetType(self.me.as_ptr()) };
-            let stage = unsafe { self.funcs.IRObjectGetMetalIRShaderStage(self.me.as_ptr()) };
-            Err(MetalLibNoBytecodeFoundError(obj_type, stage))
+            Err(MetalLibNoBytecodeFoundError {
+                object_type: self.r#type(),
+                stage: self.metal_ir_shader_stage(),
+            })
         }
     }
 
     #[doc(alias = "IRObjectGetReflection")]
-    pub fn reflection(&self, shader_stage: ffi::IRShaderStage) -> Option<IRShaderReflection> {
+    pub fn reflection(&self) -> Option<IRShaderReflection> {
         let reflection = IRShaderReflection::new(self.compiler);
         if unsafe {
-            self.funcs
-                .IRObjectGetReflection(self.me.as_ptr(), shader_stage, reflection.me.as_ptr())
+            self.funcs.IRObjectGetReflection(
+                self.me.as_ptr(),
+                self.metal_ir_shader_stage(),
+                reflection.me.as_ptr(),
+            )
         } {
             Some(reflection)
         } else {
@@ -206,12 +212,8 @@ impl Drop for IRRootSignature {
 }
 
 #[derive(Error, Debug)]
-pub enum RootSignatureError {
-    #[error("IRRootSignature creation failed with error code {0:?}: {1:#?}")]
-    CreateError(ffi::IRErrorCode, CString),
-    #[error("Failed to create IRRootSignature")]
-    Unknown,
-}
+#[error("IRRootSignature creation failed: {0:?}")]
+pub struct RootSignatureError(IRError);
 
 impl IRRootSignature {
     #[doc(alias = "IRRootSignatureCreateFromDescriptor")]
@@ -227,22 +229,17 @@ impl IRRootSignature {
                 .IRRootSignatureCreateFromDescriptor(desc, &mut error)
         });
 
-        // If the root signature failed to create
-        if error.is_null() {
-            match me {
-                Some(me) => Ok(Self {
-                    me,
-                    funcs: compiler.funcs.clone(),
-                }),
-                None => Err(RootSignatureError::Unknown),
-            }
-        } else {
-            let error = IRError::from_ptr(error, compiler.funcs.clone());
-            Err(RootSignatureError::CreateError(
-                error.code(),
-                error.payload(),
-            ))
+        if let Some(error) = NonNull::new(error) {
+            let error = unsafe { IRError::from_ptr(error, compiler.funcs.clone()) };
+            return Err(RootSignatureError(error));
         }
+
+        let me =
+            me.expect("IRRootSignatureCreateFromDescriptor should not return NULL without error");
+        Ok(Self {
+            me,
+            funcs: compiler.funcs.clone(),
+        })
     }
 
     #[doc(alias(
@@ -251,20 +248,13 @@ impl IRRootSignature {
     ))]
     pub fn resource_locations(&self) -> Vec<ffi::IRResourceLocation> {
         let n_resources = unsafe { self.funcs.IRRootSignatureGetResourceCount(self.me.as_ptr()) };
-        let empty_location = ffi::IRResourceLocation {
-            resourceType: ffi::IRResourceType::Invalid,
-            space: 0,
-            slot: 0,
-            topLevelOffset: 0,
-            sizeBytes: 0,
-            resourceName: std::ptr::null(),
-        };
-        let mut resource_locations = vec![empty_location; n_resources];
+        let mut resource_locations = Vec::with_capacity(n_resources);
         unsafe {
             self.funcs.IRRootSignatureGetResourceLocations(
                 self.me.as_ptr(),
                 resource_locations.as_mut_ptr(),
-            )
+            );
+            resource_locations.set_len(n_resources)
         };
         resource_locations
     }
@@ -300,8 +290,8 @@ impl IRCompilerFactory {
 }
 
 #[derive(Error, Debug)]
-#[error("IRObject compilation failed with error code {0:?}: {1:#?}")]
-pub struct CompilerError(ffi::IRErrorCode, CString);
+#[error("IRObject compilation failed: {0:?}")]
+pub struct CompilerError(IRError);
 
 /// This object is not thread-safe, refer to [the Metal shader converter documentation], the "Multithreading considerations" chapter.
 ///
@@ -401,14 +391,13 @@ impl IRCompiler {
 
     #[doc(alias = "IRCompilerAllocCompileAndLink")]
     pub fn alloc_compile_and_link<'a>(
-        // TODO: This was mut, why?
         &'a self,
         entry_point: &CStr,
         input: &IRObject<'a>,
     ) -> Result<IRObject<'a>, CompilerError> {
         let mut error = std::ptr::null_mut();
 
-        let v = NonNull::new(unsafe {
+        let object = NonNull::new(unsafe {
             self.funcs.IRCompilerAllocCompileAndLink(
                 self.me.as_ptr(),
                 entry_point.as_ptr(),
@@ -417,20 +406,22 @@ impl IRCompiler {
             )
         });
 
-        if error.is_null() {
-            Ok(IRObject {
-                me: v.unwrap(),
-                funcs: input.funcs.clone(),
-                compiler: self,
-            })
-        } else {
-            let error = IRError::from_ptr(error, self.funcs.clone());
-            Err(CompilerError(error.code(), error.payload()))
+        if let Some(error) = NonNull::new(error) {
+            let error = unsafe { IRError::from_ptr(error, self.funcs.clone()) };
+            return Err(CompilerError(error));
         }
+
+        let object =
+            object.expect("IRCompilerAllocCompileAndLink should not return NULL without error");
+        Ok(IRObject {
+            me: object,
+            funcs: input.funcs.clone(),
+            compiler: self,
+        })
     }
 }
 
-struct IRError {
+pub struct IRError {
     me: NonNull<bindings::IRError>,
     funcs: Arc<bindings::metal_irconverter>,
 }
@@ -442,57 +433,57 @@ impl Drop for IRError {
     }
 }
 
+impl fmt::Debug for IRError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IRError")
+            .field("code", &self.code())
+            .field("payload", &self.payload())
+            .finish()
+    }
+}
+
 impl IRError {
-    pub fn from_ptr(ptr: *mut bindings::IRError, funcs: Arc<bindings::metal_irconverter>) -> Self {
-        Self {
-            me: NonNull::new(ptr).unwrap(),
-            funcs,
-        }
+    unsafe fn from_ptr(
+        me: NonNull<bindings::IRError>,
+        funcs: Arc<bindings::metal_irconverter>,
+    ) -> Self {
+        Self { me, funcs }
     }
 
     #[doc(alias = "IRErrorGetCode")]
-    pub fn code(&self) -> IRErrorCode {
+    pub fn code(&self) -> ffi::IRErrorCode {
         let code = unsafe { self.funcs.IRErrorGetCode(self.me.as_ptr()) };
+        use ffi::IRErrorCode::*;
         match code {
-            x if x == IRErrorCode::NoError as u32 => IRErrorCode::NoError,
-            x if x == IRErrorCode::ShaderRequiresRootSignature as u32 => {
-                IRErrorCode::ShaderRequiresRootSignature
+            x if x == NoError as u32 => NoError,
+            x if x == ShaderRequiresRootSignature as u32 => ShaderRequiresRootSignature,
+            x if x == UnrecognizedRootSignatureDescriptor as u32 => {
+                UnrecognizedRootSignatureDescriptor
             }
-            x if x == IRErrorCode::UnrecognizedRootSignatureDescriptor as u32 => {
-                IRErrorCode::UnrecognizedRootSignatureDescriptor
+            x if x == UnrecognizedParameterTypeInRootSignature as u32 => {
+                UnrecognizedParameterTypeInRootSignature
             }
-            x if x == IRErrorCode::UnrecognizedParameterTypeInRootSignature as u32 => {
-                IRErrorCode::UnrecognizedParameterTypeInRootSignature
+            x if x == ResourceNotReferencedByRootSignature as u32 => {
+                ResourceNotReferencedByRootSignature
             }
-            x if x == IRErrorCode::ResourceNotReferencedByRootSignature as u32 => {
-                IRErrorCode::ResourceNotReferencedByRootSignature
+            x if x == ShaderIncompatibleWithDualSourceBlending as u32 => {
+                ShaderIncompatibleWithDualSourceBlending
             }
-            x if x == IRErrorCode::ShaderIncompatibleWithDualSourceBlending as u32 => {
-                IRErrorCode::ShaderIncompatibleWithDualSourceBlending
+            x if x == UnsupportedWaveSize as u32 => UnsupportedWaveSize,
+            x if x == UnsupportedInstruction as u32 => UnsupportedInstruction,
+            x if x == CompilationError as u32 => CompilationError,
+            x if x == FailedToSynthesizeStageInFunction as u32 => FailedToSynthesizeStageInFunction,
+            x if x == FailedToSynthesizeStreamOutFunction as u32 => {
+                FailedToSynthesizeStreamOutFunction
             }
-            x if x == IRErrorCode::UnsupportedWaveSize as u32 => IRErrorCode::UnsupportedWaveSize,
-            x if x == IRErrorCode::UnsupportedInstruction as u32 => {
-                IRErrorCode::UnsupportedInstruction
+            x if x == FailedToSynthesizeIndirectIntersectionFunction as u32 => {
+                FailedToSynthesizeIndirectIntersectionFunction
             }
-            x if x == IRErrorCode::CompilationError as u32 => IRErrorCode::CompilationError,
-            x if x == IRErrorCode::FailedToSynthesizeStageInFunction as u32 => {
-                IRErrorCode::FailedToSynthesizeStageInFunction
-            }
-            x if x == IRErrorCode::FailedToSynthesizeStreamOutFunction as u32 => {
-                IRErrorCode::FailedToSynthesizeStreamOutFunction
-            }
-            x if x == IRErrorCode::FailedToSynthesizeIndirectIntersectionFunction as u32 => {
-                IRErrorCode::FailedToSynthesizeIndirectIntersectionFunction
-            }
-            x if x == IRErrorCode::UnableToVerifyModule as u32 => IRErrorCode::UnableToVerifyModule,
-            x if x == IRErrorCode::UnableToLinkModule as u32 => IRErrorCode::UnableToLinkModule,
-            x if x == IRErrorCode::UnrecognizedDXILHeader as u32 => {
-                IRErrorCode::UnrecognizedDXILHeader
-            }
-            x if x == IRErrorCode::InvalidRaytracingAttribute as u32 => {
-                IRErrorCode::InvalidRaytracingAttribute
-            }
-            x if x == IRErrorCode::Unknown as u32 => IRErrorCode::Unknown,
+            x if x == UnableToVerifyModule as u32 => UnableToVerifyModule,
+            x if x == UnableToLinkModule as u32 => UnableToLinkModule,
+            x if x == UnrecognizedDXILHeader as u32 => UnrecognizedDXILHeader,
+            x if x == InvalidRaytracingAttribute as u32 => InvalidRaytracingAttribute,
+            x if x == Unknown as u32 => Unknown,
             _ => panic!("Invalid error code"),
         }
     }

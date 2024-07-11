@@ -57,16 +57,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Convert to Metal
         let mtllib = compiler.alloc_compile_and_link(c"main", &obj)?;
-        let mtl_binary = mtllib.metal_lib_binary(ffi::IRShaderStage::Compute)?;
+        let mtl_binary = mtllib.metal_lib_binary()?;
 
         // Get Metal bytecode
         let metal_bytecode = mtl_binary.byte_code();
         dbg!(metal_bytecode.len());
-        dbg!(mtllib.object_type());
+        dbg!(mtllib.r#type());
         dbg!(mtllib.metal_ir_shader_stage());
 
         // Get reflection from the shader
-        let mtl_reflection = mtllib.reflection(ffi::IRShaderStage::Compute);
+        let mtl_reflection = mtllib.reflection();
 
         let compute_info = mtl_reflection.map(|mtl_reflection| {
             mtl_reflection
