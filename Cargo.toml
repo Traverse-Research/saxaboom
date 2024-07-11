@@ -18,3 +18,4 @@ members = [
 
 [dependencies]
 libloading = "0.8"
+thiserror = "1.0"
