@@ -14,6 +14,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Cargo test
         run: cargo test --workspace
+      - name: Cargo doc
+        run: cargo doc --workspace --all-features --no-deps --document-private-items
 
   generate-rust:
     name: Generate Rust crate
