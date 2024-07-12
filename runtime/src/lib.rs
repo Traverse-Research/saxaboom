@@ -15,6 +15,7 @@ pub mod bindings {
 pub use bindings as ffi;
 
 /// Rust version of `IRBufferView` using [`metal`] types.
+#[doc(alias = "IRBufferView")]
 pub struct BufferView<'a> {
     pub buffer: &'a metal::Buffer,
     pub buffer_offset: u64,
@@ -103,6 +104,7 @@ impl ffi::IRDescriptorTableEntry {
     ///
     /// This function is a port of the `IRDescriptorTableGetBufferMetadata` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
+    #[doc(alias = "IRDescriptorTableGetBufferMetadata")]
     pub fn buffer_metadata(view: &BufferView<'_>) -> u64 {
         let mut metadata = (view.buffer_size & ffi::kIRBufSizeMask) << ffi::kIRBufSizeOffset;
         metadata |= (view.texture_view_offset_in_elements as u64 & ffi::kIRTexViewMask)
