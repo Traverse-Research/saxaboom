@@ -1,4 +1,4 @@
-use saxaboom::{ffi, IRCompilerFactory, IRObject, IRRootSignature};
+use saxaboom::{ffi, MetalIrConverter};
 
 fn create_static_sampler(
     min_mag_mip_mode: ffi::IRFilter,
@@ -27,9 +27,10 @@ fn create_static_sampler(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     unsafe {
+        // Load the library
+        let metal_irconverter = MetalIrConverter::new("libmetalirconverter.dylib").unwrap();
         // Create an instance of IRCompiler
-        let compiler_factory = IRCompilerFactory::new("libmetalirconverter.dylib").unwrap();
-        let mut compiler = compiler_factory.create_compiler();
+        let mut compiler = metal_irconverter.create_compiler();
 
         // Create an explicit root signature layout
         let mut parameters = create_root_parameters();
@@ -48,16 +49,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             u_1: ffi::IRVersionedRootSignatureDescriptor_u { desc_1_1 },
         };
 
-        let root_sig = IRRootSignature::create_from_descriptor(&compiler, &desc)?;
+        let root_sig = metal_irconverter.create_root_signature_from_descriptor(&desc)?;
         compiler.set_global_root_signature(&root_sig);
 
         // Load DXIL
         let dxil = include_bytes!("assets/memcpy.cs.dxil");
-        let obj = IRObject::create_from_dxil(&compiler, dxil);
+        let obj = metal_irconverter.create_object_from_dxil(dxil);
 
         // Convert to Metal
         let mtllib = compiler.alloc_compile_and_link(c"main", &obj)?;
-        let mtl_binary = mtllib.metal_lib_binary()?;
+        let mtl_binary = mtllib
+            .metal_lib_binary()
+            .expect("Compiled object should contain a `metallib`");
 
         // Get Metal bytecode
         let metal_bytecode = mtl_binary.byte_code();
