@@ -1,22 +1,23 @@
 [package]
-name = "saxaboom"
+name = "saxaboom-runtime"
 version = "0.0.0+irconverter-1.1"
 authors = ["Traverse Research <support@traverseresearch.nl>"]
 edition = "2021"
 license = "Apache-2.0"
 homepage = "https://traverseresearch.nl"
 repository = "https://github.com/Traverse-Research/saxaboom"
-description = "Binding library for metal_irconverter"
-include = ["src", "LICENSE"]
+description = "Runtime definitions for metal_irconverter"
 categories = ["api-bindings", "external-ffi-bindings", "graphics"]
 keywords = ["metal", "shader", "metal_irconverter", "apple"]
 
-[workspace]
-members = [
-    "bindings_generator",
-    "runtime",
+[package.metadata.docs.rs]
+targets = [
+  "aarch64-apple-darwin", # presented first in docs.rs, keep this here
+  "aarch64-apple-ios",
+  "aarch64-apple-ios-sim",
+  "x86_64-apple-darwin",
+  "x86_64-apple-ios",
 ]
 
 [dependencies]
-libloading = "0.8"
-thiserror = "1.0"
+metal = "0.29"

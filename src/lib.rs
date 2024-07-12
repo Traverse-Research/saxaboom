@@ -10,11 +10,9 @@ use std::{
 };
 
 #[allow(
-    clippy::enum_variant_names,
     clippy::missing_safety_doc,
     clippy::too_many_arguments,
     clippy::use_self,
-    dead_code,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
