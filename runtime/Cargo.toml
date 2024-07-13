@@ -20,4 +20,5 @@ targets = [
 ]
 
 [dependencies]
+libloading = "0.8"
 metal = "0.29"

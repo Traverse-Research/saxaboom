@@ -44,26 +44,21 @@ fn runtime_bindings() {
         .header(header.to_str().unwrap())
         .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&["-I", include_dir.to_str().unwrap(), "-xc++"])
+        // TODO: Is this even in the library, or should we static-compile the headers with _PRIVATE flag?
+        .dynamic_link_require_all(true)
+        .dynamic_library_name("metal_irconverter")
         .layout_tests(false)
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: true,
         })
         .derive_default(true)
         .generate_comments(true)
-        .allowlist_recursively(false)
-        // Only allowlist types and variables (constants), skip all function declarations
-        .allowlist_var("kIR\\w+")
-        .allowlist_type("IR\\w+")
-        // Block a few types that contain obj-C types but are only used in the "inline" functions
-        // that we're skipping, to simplify our bindings.
-        .blocklist_type("IRGeometryEmulationPipelineDescriptor")
-        .blocklist_type("IRGeometryTessellationEmulationPipelineDescriptor")
-        .blocklist_type("IRBufferView")
-        // Specific (POD) types that we include explicitly
-        .allowlist_type("MTLDispatchThreadgroupsIndirectArguments")
-        .allowlist_type("dispatchthreadgroupsindirectargs_t")
-        .allowlist_type("uint")
-        .allowlist_type("resourceid_t")
+        .allowlist_item("k?IR\\w+")
+        // Replace with `metal` crate
+        .blocklist_item("MTL\\w+")
+        // TODO: Blocklist goes over allowlist, we're loosing this type :/
+        .allowlist_item("MTLDispatchThreadgroupsIndirectArguments")
+        .blocklist_item("NS\\w+")
         .anon_fields_prefix("u_")
         .prepend_enum_name(false)
         .generate()

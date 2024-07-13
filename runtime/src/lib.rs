@@ -10,8 +10,22 @@ pub mod bindings {
     // Use an include to be able to import more items into this module as below
     include!("bindings.rs");
 
-    pub use metal::MTLResourceID;
+    // TODO: Use the proper type from one of the objc or objc2 crates?
+    enum NSError {}
+
+    use metal::{
+        MTLIndexType, MTLMeshRenderPipelineDescriptor, MTLPrimitiveType, MTLResourceID, NSUInteger,
+    };
+
+    // TODO: Blocklist breaks generation of this type, and it's not in the metal crate either.
+    #[repr(C)]
+    #[derive(Debug, Default, Copy, Clone)]
+    pub struct MTLDispatchThreadgroupsIndirectArguments {
+        pub threadgroupsPerGrid: [u32; 3usize],
+    }
 }
+use std::mem::MaybeUninit;
+
 pub use bindings as ffi;
 
 /// Rust version of `IRBufferView` using [`metal`] types.
@@ -32,12 +46,10 @@ impl ffi::IRDescriptorTableEntry {
     // TODO: The docs say  "buffer view" for metadata: can we take a BufferView struct and set `Self::buffer_metadata()` instead?
     // There are special constructors for atomic/counter buffers after all...
     #[doc(alias = "IRDescriptorTableSetBuffer")]
-    pub fn buffer(gpu_address: u64, metadata: u64) -> Self {
-        Self {
-            gpuVA: gpu_address,
-            textureViewID: 0,
-            metadata,
-        }
+    pub fn buffer(lib: &ffi::metal_irconverter, gpu_address: u64, metadata: u64) -> Self {
+        let mut e = MaybeUninit::uninit();
+        unsafe { (lib.IRDescriptorTableSetBuffer)(e.as_mut_ptr(), gpu_address, metadata) };
+        unsafe { e.assume_init() }
     }
 
     /// Encode a buffer view descriptor.
@@ -45,15 +57,19 @@ impl ffi::IRDescriptorTableEntry {
     /// This function is a port of the `IRDescriptorTableSetBufferView` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
     #[doc(alias = "IRDescriptorTableSetBufferView")]
-    pub fn buffer_view(buffer_view: &BufferView<'_>) -> Self {
-        Self {
-            gpuVA: buffer_view.buffer.gpu_address() + buffer_view.buffer_offset,
-            textureViewID: match buffer_view.texture_buffer_view {
-                Some(texture) => texture.gpu_resource_id()._impl,
-                None => 0,
-            },
-            metadata: Self::buffer_metadata(buffer_view),
-        }
+    pub fn buffer_view(lib: &ffi::metal_irconverter, buffer_view: &BufferView<'_>) -> Self {
+        let mut e = MaybeUninit::uninit();
+        // TODO: No mut
+        let mut buffer_view = ffi::IRBufferView {
+            buffer: buffer_view.buffer.clone(),
+            bufferOffset: buffer_view.buffer_offset,
+            bufferSize: buffer_view.buffer_size,
+            textureBufferView: buffer_view.texture_buffer_view.cloned(),
+            textureViewOffsetInElements: buffer_view.texture_view_offset_in_elements,
+            typedBuffer: buffer_view.typed_buffer,
+        };
+        unsafe { (lib.IRDescriptorTableSetBufferView)(e.as_mut_ptr(), &mut buffer_view) };
+        unsafe { e.assume_init() }
     }
 
     /// Encode a texture in this descriptor.
@@ -103,6 +119,7 @@ impl ffi::IRDescriptorTableEntry {
     ///
     /// This function is a port of the `IRDescriptorTableGetBufferMetadata` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
+    #[doc(alias = "IRDescriptorTableGetBufferMetadata")]
     pub fn buffer_metadata(view: &BufferView<'_>) -> u64 {
         let mut metadata = (view.buffer_size & ffi::kIRBufSizeMask) << ffi::kIRBufSizeOffset;
         metadata |= (view.texture_view_offset_in_elements as u64 & ffi::kIRTexViewMask)

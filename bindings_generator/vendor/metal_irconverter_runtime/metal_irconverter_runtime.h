@@ -73,6 +73,17 @@ extern "C" {
 #define IR_INLINE       __attribute__((always_inline))
 #define IR_OVERLOADABLE __attribute__((overloadable))
 
+extern const uint64_t kIRArgumentBufferBindPoint;
+extern const uint64_t kIRDescriptorHeapBindPoint;
+extern const uint64_t kIRSamplerHeapBindPoint;
+extern const uint64_t kIRArgumentBufferHullDomainBindPoint;
+extern const uint64_t kIRArgumentBufferDrawArgumentsBindPoint;
+extern const uint64_t kIRArgumentBufferUniformsBindPoint;
+extern const uint64_t kIRVertexBufferBindPoint;
+extern const uint64_t kIRStageInAttributeStartIndex;
+extern const char* kIRIndirectTriangleIntersectionFunctionName;
+extern const char* kIRIndirectProceduralIntersectionFunctionName;
+
 typedef struct IRDescriptorTableEntry
 {
     uint64_t gpuVA;
@@ -485,25 +496,6 @@ renderpipelinestate_t IRRuntimeNewGeometryTessellationEmulationPipeline(device_t
                                                                         const IRGeometryTessellationEmulationPipelineDescriptor* descriptor,
                                                                         nserror_t* error) API_AVAILABLE(macosx(14), ios(17));
 
-static const uint64_t kIRArgumentBufferBindPoint                   = 2;
-static const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
-static const uint64_t kIRDescriptorHeapBindPoint                   = 0;
-static const uint64_t kIRSamplerHeapBindPoint                      = 1;
-static const uint64_t kIRArgumentBufferDrawArgumentsBindPoint      = 4;
-static const uint64_t kIRArgumentBufferUniformsBindPoint           = 5;
-static const uint64_t kIRVertexBufferBindPoint                     = 6;
-static const uint64_t kIRStageInAttributeStartIndex                = 11;
-static const char* kIRIndirectTriangleIntersectionFunctionName     = "irconverter.wrapper.intersection.function.triangle";
-static const char* kIRIndirectProceduralIntersectionFunctionName   = "irconverter.wrapper.intersection.function.procedural";
-
-
-static const uint64_t kIRBufSizeOffset     = 0;
-static const uint64_t kIRBufSizeMask       = 0xffffffff;
-static const uint64_t kIRTexViewOffset     = 32;
-static const uint64_t kIRTexViewMask       = 0xff;
-static const uint64_t kIRTypedBufferOffset = 63;
-
-
 #ifdef IR_PRIVATE_IMPLEMENTATION
 
 #ifndef IR_RUNTIME_METALCPP
@@ -511,6 +503,25 @@ static const uint64_t kIRTypedBufferOffset = 63;
 #error The implementation of this file needs to be generated in a module with ARC enabled when in Objective-C mode.
 #endif
 #endif
+
+
+const uint64_t kIRArgumentBufferBindPoint                   = 2;
+const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
+const uint64_t kIRDescriptorHeapBindPoint                   = 0;
+const uint64_t kIRSamplerHeapBindPoint                      = 1;
+const uint64_t kIRArgumentBufferDrawArgumentsBindPoint      = 4;
+const uint64_t kIRArgumentBufferUniformsBindPoint           = 5;
+const uint64_t kIRVertexBufferBindPoint                     = 6;
+const uint64_t kIRStageInAttributeStartIndex                = 11;
+const char* kIRIndirectTriangleIntersectionFunctionName     = "irconverter.wrapper.intersection.function.triangle";
+const char* kIRIndirectProceduralIntersectionFunctionName   = "irconverter.wrapper.intersection.function.procedural";
+
+
+const uint64_t kIRBufSizeOffset     = 0;
+const uint64_t kIRBufSizeMask       = 0xffffffff;
+const uint64_t kIRTexViewOffset     = 32;
+const uint64_t kIRTexViewMask       = 0xff;
+const uint64_t kIRTypedBufferOffset = 63;
 
 
 IR_INLINE

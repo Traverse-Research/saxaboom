@@ -83,10 +83,52 @@ where
 pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct MTLDispatchThreadgroupsIndirectArguments {
-    pub threadgroupsPerGrid: [u32; 3usize],
+pub struct id {
+    pub _address: u8,
 }
+pub type nserror_t = *mut NSError;
+pub type texture_t = id;
+pub type buffer_t = id;
+pub type sampler_t = id;
+pub type renderencoder_t = id;
+pub type primitivetype_t = MTLPrimitiveType;
+pub type indextype_t = MTLIndexType;
+pub type renderpipelinestate_t = id;
+pub type library_t = id;
+pub type meshpipelinedescriptor_t = *mut MTLMeshRenderPipelineDescriptor;
+pub type device_t = id;
 pub type resourceid_t = MTLResourceID;
+pub type uinteger_t = NSUInteger;
+extern "C" {
+    pub static kIRArgumentBufferBindPoint: u64;
+}
+extern "C" {
+    pub static kIRDescriptorHeapBindPoint: u64;
+}
+extern "C" {
+    pub static kIRSamplerHeapBindPoint: u64;
+}
+extern "C" {
+    pub static kIRArgumentBufferHullDomainBindPoint: u64;
+}
+extern "C" {
+    pub static kIRArgumentBufferDrawArgumentsBindPoint: u64;
+}
+extern "C" {
+    pub static kIRArgumentBufferUniformsBindPoint: u64;
+}
+extern "C" {
+    pub static kIRVertexBufferBindPoint: u64;
+}
+extern "C" {
+    pub static kIRStageInAttributeStartIndex: u64;
+}
+extern "C" {
+    pub static mut kIRIndirectTriangleIntersectionFunctionName: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRIndirectProceduralIntersectionFunctionName: *const ::std::os::raw::c_char;
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRDescriptorTableEntry {
@@ -94,9 +136,15 @@ pub struct IRDescriptorTableEntry {
     pub textureViewID: u64,
     pub metadata: u64,
 }
-pub const kIRRuntimeTessellatorTablesBindPoint: u64 = 7;
-pub const kIRRuntimeTessellatorTablesCountsAndOffsetLength: u32 = 32768;
-pub const kIRRuntimeTessellatorTablesLookupTableLength: u32 = 701114;
+extern "C" {
+    pub static kIRRuntimeTessellatorTablesBindPoint: u64;
+}
+extern "C" {
+    pub static kIRRuntimeTessellatorTablesCountsAndOffsetLength: u32;
+}
+extern "C" {
+    pub static kIRRuntimeTessellatorTablesLookupTableLength: u32;
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRShaderIdentifier {
@@ -150,12 +198,20 @@ impl Default for IRDispatchRaysArgument {
 }
 pub type dispatchthreadgroupsindirectargs_t = MTLDispatchThreadgroupsIndirectArguments;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
 pub struct IRRaytracingAccelerationStructureGPUHeader {
     pub accelerationStructureID: u64,
     pub addressOfInstanceContributions: u64,
     pub pad0: [u64; 4usize],
     pub pad1: dispatchthreadgroupsindirectargs_t,
+}
+impl Default for IRRaytracingAccelerationStructureGPUHeader {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -238,8 +294,12 @@ impl IRRaytracingInstanceDescriptor {
         __bindgen_bitfield_unit
     }
 }
-pub const kIRRayDispatchIndirectionKernelName: &[u8; 18] = b"RaygenIndirection\0";
-pub const kIRRayDispatchArgumentsBindPoint: u64 = 3;
+extern "C" {
+    pub static mut kIRRayDispatchIndirectionKernelName: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static kIRRayDispatchArgumentsBindPoint: u64;
+}
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -249,6 +309,24 @@ pub enum IRRuntimeResourceType {
     CBV = 2,
     SMP = 3,
     Count = 4,
+}
+#[repr(C)]
+pub struct IRBufferView {
+    pub buffer: buffer_t,
+    pub bufferOffset: u64,
+    pub bufferSize: u64,
+    pub textureBufferView: texture_t,
+    pub textureViewOffsetInElements: u32,
+    pub typedBuffer: bool,
+}
+impl Default for IRBufferView {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 impl IRRuntimePrimitiveType {
     pub const _1ControlPointPatchlist: IRRuntimePrimitiveType = IRRuntimePrimitiveType::Triangle;
@@ -396,6 +474,52 @@ impl Default for IRRuntimeTessellationPipelineConfig {
     }
 }
 #[repr(C)]
+pub struct IRGeometryEmulationPipelineDescriptor {
+    pub stageInLibrary: library_t,
+    pub vertexLibrary: library_t,
+    pub vertexFunctionName: *const ::std::os::raw::c_char,
+    pub geometryLibrary: library_t,
+    pub geometryFunctionName: *const ::std::os::raw::c_char,
+    pub fragmentLibrary: library_t,
+    pub fragmentFunctionName: *const ::std::os::raw::c_char,
+    pub basePipelineDescriptor: meshpipelinedescriptor_t,
+    pub pipelineConfig: IRRuntimeGeometryPipelineConfig,
+}
+impl Default for IRGeometryEmulationPipelineDescriptor {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(C)]
+pub struct IRGeometryTessellationEmulationPipelineDescriptor {
+    pub stageInLibrary: library_t,
+    pub vertexLibrary: library_t,
+    pub vertexFunctionName: *const ::std::os::raw::c_char,
+    pub hullLibrary: library_t,
+    pub hullFunctionName: *const ::std::os::raw::c_char,
+    pub domainLibrary: library_t,
+    pub domainFunctionName: *const ::std::os::raw::c_char,
+    pub geometryLibrary: library_t,
+    pub geometryFunctionName: *const ::std::os::raw::c_char,
+    pub fragmentLibrary: library_t,
+    pub fragmentFunctionName: *const ::std::os::raw::c_char,
+    pub basePipelineDescriptor: meshpipelinedescriptor_t,
+    pub pipelineConfig: IRRuntimeTessellationPipelineConfig,
+}
+impl Default for IRGeometryTessellationEmulationPipelineDescriptor {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRRuntimeVertexBuffer {
     pub addr: u64,
@@ -463,20 +587,621 @@ pub struct IRRuntimeDrawInfo {
     pub inputControlPointsPerPatch: u16,
     pub indexBuffer: u64,
 }
-pub const kIRArgumentBufferBindPoint: u64 = 2;
-pub const kIRArgumentBufferHullDomainBindPoint: u64 = 3;
-pub const kIRDescriptorHeapBindPoint: u64 = 0;
-pub const kIRSamplerHeapBindPoint: u64 = 1;
-pub const kIRArgumentBufferDrawArgumentsBindPoint: u64 = 4;
-pub const kIRArgumentBufferUniformsBindPoint: u64 = 5;
-pub const kIRVertexBufferBindPoint: u64 = 6;
-pub const kIRStageInAttributeStartIndex: u64 = 11;
-pub const kIRIndirectTriangleIntersectionFunctionName: &[u8; 51] =
-    b"irconverter.wrapper.intersection.function.triangle\0";
-pub const kIRIndirectProceduralIntersectionFunctionName: &[u8; 53] =
-    b"irconverter.wrapper.intersection.function.procedural\0";
-pub const kIRBufSizeOffset: u64 = 0;
-pub const kIRBufSizeMask: u64 = 4294967295;
-pub const kIRTexViewOffset: u64 = 32;
-pub const kIRTexViewMask: u64 = 255;
-pub const kIRTypedBufferOffset: u64 = 63;
+extern crate libloading;
+pub struct metal_irconverter {
+    __library: ::libloading::Library,
+    pub IRRuntimeTessellatorTablesSize: unsafe extern "C" fn() -> u64,
+    pub IRRuntimeLoadTessellatorTables: unsafe extern "C" fn(buffer: buffer_t),
+    pub IRDescriptorTableSetAccelerationStructure:
+        unsafe extern "C" fn(entry: *mut IRDescriptorTableEntry, gpu_va: u64),
+    pub IRRaytracingSetAccelerationStructure: unsafe extern "C" fn(
+        headerBuffer: *mut u8,
+        accelerationStructure: resourceid_t,
+        instanceContributionArrayBuffer: *mut u8,
+        instanceContributions: *const u32,
+        instanceCount: uinteger_t,
+    ),
+    pub IRShaderIdentifierInit:
+        unsafe extern "C" fn(identifier: *mut IRShaderIdentifier, shaderHandle: u64),
+    pub IRShaderIdentifierInitWithCustomIntersection: unsafe extern "C" fn(
+        identifier: *mut IRShaderIdentifier,
+        shaderHandle: u64,
+        intersectionShaderHandle: u64,
+    ),
+    pub IRRuntimeCreateAppendBufferView: unsafe extern "C" fn(
+        device: device_t,
+        appendBuffer: buffer_t,
+        appendBufferOffset: u64,
+        initialCounterValue: u32,
+        outBufferView: *mut IRBufferView,
+    ),
+    pub IRRuntimeGetAppendBufferCount: unsafe extern "C" fn(bufferView: *mut IRBufferView) -> u32,
+    pub IRDescriptorTableGetBufferMetadata: unsafe extern "C" fn(view: *mut IRBufferView) -> u64,
+    pub IRDescriptorTableSetBuffer:
+        unsafe extern "C" fn(entry: *mut IRDescriptorTableEntry, gpu_va: u64, metadata: u64),
+    pub IRDescriptorTableSetBufferView:
+        unsafe extern "C" fn(entry: *mut IRDescriptorTableEntry, bufferView: *mut IRBufferView),
+    pub IRDescriptorTableSetTexture: unsafe extern "C" fn(
+        entry: *mut IRDescriptorTableEntry,
+        argument: texture_t,
+        minLODClamp: f32,
+        metadata: u32,
+    ),
+    pub IRDescriptorTableSetSampler:
+        unsafe extern "C" fn(entry: *mut IRDescriptorTableEntry, argument: sampler_t, lodBias: f32),
+    pub IRRuntimeDrawPrimitives: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        vertexStart: u64,
+        vertexCount: u64,
+        instanceCount: u64,
+        baseInstance: u64,
+    ),
+    pub IRRuntimeDrawPrimitives1: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        vertexStart: u64,
+        vertexCount: u64,
+        instanceCount: u64,
+    ),
+    pub IRRuntimeDrawPrimitives2: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        vertexStart: u64,
+        vertexCount: u64,
+    ),
+    pub IRRuntimeDrawPrimitives3: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indirectBuffer: buffer_t,
+        indirectBufferOffset: u64,
+    ),
+    pub IRRuntimeDrawIndexedPrimitives: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexCount: u64,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+        instanceCount: u64,
+        baseVertex: i64,
+        baseInstance: u64,
+    ),
+    pub IRRuntimeDrawIndexedPrimitives1: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexCount: u64,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+        instanceCount: u64,
+    ),
+    pub IRRuntimeDrawIndexedPrimitives2: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexCount: u64,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+    ),
+    pub IRRuntimeDrawIndexedPrimitives3: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+        indirectBuffer: buffer_t,
+        indirectBufferOffset: u64,
+    ),
+    pub IRRuntimeDrawIndexedPrimitivesGeometryEmulation: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveType: IRRuntimePrimitiveType,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        geometryPipelineConfig: IRRuntimeGeometryPipelineConfig,
+        instanceCount: u32,
+        indexCountPerInstance: u32,
+        startIndex: u32,
+        baseVertex: ::std::os::raw::c_int,
+        baseInstance: u32,
+    ),
+    pub IRRuntimeDrawIndexedPatchesTessellationEmulation: unsafe extern "C" fn(
+        enc: renderencoder_t,
+        primitiveTopology: IRRuntimePrimitiveType,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        tessellationPipelineConfig: IRRuntimeTessellationPipelineConfig,
+        instanceCount: u32,
+        indexCountPerInstance: u32,
+        baseInstance: u32,
+        baseVertex: i32,
+        startIndex: u32,
+    ),
+    pub IRRuntimeValidateTessellationPipeline: unsafe extern "C" fn(
+        hsTessellatorOutputPrimitive: IRRuntimeTessellatorOutputPrimitive,
+        gsInputPrimitive: IRRuntimePrimitiveType,
+        hsOutputControlPointSize: u32,
+        dsInputControlPointSize: u32,
+        hsPatchConstantsSize: u32,
+        dsPatchConstantsSize: u32,
+        hsOutputControlPointCount: u32,
+        dsInputControlPointCount: u32,
+    ) -> bool,
+    pub IRRuntimeNewGeometryEmulationPipeline: unsafe extern "C" fn(
+        device: device_t,
+        descriptor: *const IRGeometryEmulationPipelineDescriptor,
+        error: *mut nserror_t,
+    ) -> renderpipelinestate_t,
+    pub IRRuntimeNewGeometryTessellationEmulationPipeline:
+        unsafe extern "C" fn(
+            device: device_t,
+            descriptor: *const IRGeometryTessellationEmulationPipelineDescriptor,
+            error: *mut nserror_t,
+        ) -> renderpipelinestate_t,
+}
+impl metal_irconverter {
+    pub unsafe fn new<P>(path: P) -> Result<Self, ::libloading::Error>
+    where
+        P: AsRef<::std::ffi::OsStr>,
+    {
+        let library = ::libloading::Library::new(path)?;
+        Self::from_library(library)
+    }
+    pub unsafe fn from_library<L>(library: L) -> Result<Self, ::libloading::Error>
+    where
+        L: Into<::libloading::Library>,
+    {
+        let __library = library.into();
+        let IRRuntimeTessellatorTablesSize = __library
+            .get(b"IRRuntimeTessellatorTablesSize\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeLoadTessellatorTables = __library
+            .get(b"IRRuntimeLoadTessellatorTables\0")
+            .map(|sym| *sym)?;
+        let IRDescriptorTableSetAccelerationStructure = __library
+            .get(b"IRDescriptorTableSetAccelerationStructure\0")
+            .map(|sym| *sym)?;
+        let IRRaytracingSetAccelerationStructure = __library
+            .get(b"IRRaytracingSetAccelerationStructure\0")
+            .map(|sym| *sym)?;
+        let IRShaderIdentifierInit = __library.get(b"IRShaderIdentifierInit\0").map(|sym| *sym)?;
+        let IRShaderIdentifierInitWithCustomIntersection = __library
+            .get(b"IRShaderIdentifierInitWithCustomIntersection\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeCreateAppendBufferView = __library
+            .get(b"IRRuntimeCreateAppendBufferView\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeGetAppendBufferCount = __library
+            .get(b"IRRuntimeGetAppendBufferCount\0")
+            .map(|sym| *sym)?;
+        let IRDescriptorTableGetBufferMetadata = __library
+            .get(b"IRDescriptorTableGetBufferMetadata\0")
+            .map(|sym| *sym)?;
+        let IRDescriptorTableSetBuffer = __library
+            .get(b"IRDescriptorTableSetBuffer\0")
+            .map(|sym| *sym)?;
+        let IRDescriptorTableSetBufferView = __library
+            .get(b"IRDescriptorTableSetBufferView\0")
+            .map(|sym| *sym)?;
+        let IRDescriptorTableSetTexture = __library
+            .get(b"IRDescriptorTableSetTexture\0")
+            .map(|sym| *sym)?;
+        let IRDescriptorTableSetSampler = __library
+            .get(b"IRDescriptorTableSetSampler\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawPrimitives = __library
+            .get(b"IRRuntimeDrawPrimitives\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawPrimitives1 = __library
+            .get(b"IRRuntimeDrawPrimitives1\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawPrimitives2 = __library
+            .get(b"IRRuntimeDrawPrimitives2\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawPrimitives3 = __library
+            .get(b"IRRuntimeDrawPrimitives3\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawIndexedPrimitives = __library
+            .get(b"IRRuntimeDrawIndexedPrimitives\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawIndexedPrimitives1 = __library
+            .get(b"IRRuntimeDrawIndexedPrimitives1\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawIndexedPrimitives2 = __library
+            .get(b"IRRuntimeDrawIndexedPrimitives2\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawIndexedPrimitives3 = __library
+            .get(b"IRRuntimeDrawIndexedPrimitives3\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawIndexedPrimitivesGeometryEmulation = __library
+            .get(b"IRRuntimeDrawIndexedPrimitivesGeometryEmulation\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeDrawIndexedPatchesTessellationEmulation = __library
+            .get(b"IRRuntimeDrawIndexedPatchesTessellationEmulation\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeValidateTessellationPipeline = __library
+            .get(b"IRRuntimeValidateTessellationPipeline\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeNewGeometryEmulationPipeline = __library
+            .get(b"IRRuntimeNewGeometryEmulationPipeline\0")
+            .map(|sym| *sym)?;
+        let IRRuntimeNewGeometryTessellationEmulationPipeline = __library
+            .get(b"IRRuntimeNewGeometryTessellationEmulationPipeline\0")
+            .map(|sym| *sym)?;
+        Ok(metal_irconverter {
+            __library,
+            IRRuntimeTessellatorTablesSize,
+            IRRuntimeLoadTessellatorTables,
+            IRDescriptorTableSetAccelerationStructure,
+            IRRaytracingSetAccelerationStructure,
+            IRShaderIdentifierInit,
+            IRShaderIdentifierInitWithCustomIntersection,
+            IRRuntimeCreateAppendBufferView,
+            IRRuntimeGetAppendBufferCount,
+            IRDescriptorTableGetBufferMetadata,
+            IRDescriptorTableSetBuffer,
+            IRDescriptorTableSetBufferView,
+            IRDescriptorTableSetTexture,
+            IRDescriptorTableSetSampler,
+            IRRuntimeDrawPrimitives,
+            IRRuntimeDrawPrimitives1,
+            IRRuntimeDrawPrimitives2,
+            IRRuntimeDrawPrimitives3,
+            IRRuntimeDrawIndexedPrimitives,
+            IRRuntimeDrawIndexedPrimitives1,
+            IRRuntimeDrawIndexedPrimitives2,
+            IRRuntimeDrawIndexedPrimitives3,
+            IRRuntimeDrawIndexedPrimitivesGeometryEmulation,
+            IRRuntimeDrawIndexedPatchesTessellationEmulation,
+            IRRuntimeValidateTessellationPipeline,
+            IRRuntimeNewGeometryEmulationPipeline,
+            IRRuntimeNewGeometryTessellationEmulationPipeline,
+        })
+    }
+    #[doc = " Query the size in bytes necessary to store the tessellator tables."]
+    pub unsafe fn IRRuntimeTessellatorTablesSize(&self) -> u64 {
+        (self.IRRuntimeTessellatorTablesSize)()
+    }
+    #[doc = " Load the tessellator tables into the contents of a Metal buffer.\n The buffer needs to be able to store at minimum the number of bytes reported by IRRuntimeTessellatorTablesSize().\n @param buffer the buffer into which to load the tessellator tables. This buffer needs to have a shared storage mode."]
+    pub unsafe fn IRRuntimeLoadTessellatorTables(&self, buffer: buffer_t) {
+        (self.IRRuntimeLoadTessellatorTables)(buffer)
+    }
+    #[doc = " Encode an acceleration structure into the argument buffer.\n @param entry the pointer to the descriptor table entry to encode the acceleration structure reference into.\n @param gpu_va the GPU address of the acceleration structure to encode."]
+    pub unsafe fn IRDescriptorTableSetAccelerationStructure(
+        &self,
+        entry: *mut IRDescriptorTableEntry,
+        gpu_va: u64,
+    ) {
+        (self.IRDescriptorTableSetAccelerationStructure)(entry, gpu_va)
+    }
+    #[doc = " Encode an instance acceleration structure into a buffer and instance contributions into a separate one.\n @param headerBuffer pointer to an address where to encode the acceleration structure.\n @param accelerationStructure resource ID of the instance acceleration structure to encode.\n @param instanceContributionArrayBuffer pointer to an address where to encode the acceleration structure instance contributions.\n @param instanceContributions array of instance contributions to hit group index.\n @param instanceCount number of elements in the instanceContributions array."]
+    pub unsafe fn IRRaytracingSetAccelerationStructure(
+        &self,
+        headerBuffer: *mut u8,
+        accelerationStructure: resourceid_t,
+        instanceContributionArrayBuffer: *mut u8,
+        instanceContributions: *const u32,
+        instanceCount: uinteger_t,
+    ) {
+        (self.IRRaytracingSetAccelerationStructure)(
+            headerBuffer,
+            accelerationStructure,
+            instanceContributionArrayBuffer,
+            instanceContributions,
+            instanceCount,
+        )
+    }
+    #[doc = " Initialize a shader identifier to reference a ray generation, closest-hit, any-hit, miss, or callable shader without a\n custom intersection function.\n @param identifier shader identifier to initialize.\n @param shaderHandle shader handle, corresponding to the index into a visible function table of converted functions."]
+    pub unsafe fn IRShaderIdentifierInit(
+        &self,
+        identifier: *mut IRShaderIdentifier,
+        shaderHandle: u64,
+    ) {
+        (self.IRShaderIdentifierInit)(identifier, shaderHandle)
+    }
+    #[doc = " Initialize a shader identifier for a HitGroup, providing the closest-hit shader handle and a custom intersection shader handle.\n @param identifier shader identifier to initialize.\n @param shaderHandle handle to closest-hit shader, corresponding to the index into a visible function table of converted functions.\n @param intersectionShaderHandle handle to a custom any-hit, intersection, or combined any-hit and intersection function, corresponding to the index into a visible function table of converted functions."]
+    pub unsafe fn IRShaderIdentifierInitWithCustomIntersection(
+        &self,
+        identifier: *mut IRShaderIdentifier,
+        shaderHandle: u64,
+        intersectionShaderHandle: u64,
+    ) {
+        (self.IRShaderIdentifierInitWithCustomIntersection)(
+            identifier,
+            shaderHandle,
+            intersectionShaderHandle,
+        )
+    }
+    #[doc = " Create a BufferView instance representing an append/consume buffer.\n Append/consume buffers provide storage and an atomic insert/remove operation. This function takes an\n input buffer for storage, creates the atomic counter, and bundles them together in a BufferView,\n providing a convenient abstraction to use the input Metal buffer as an append/consume buffer.\n @param device device that allocates the atomic counter.\n @param appendBuffer a Metal buffer to use for backing storage of the append/consume buffer.\n @param appendBufferOffset an optional buffer into the appendBuffer. May be zero.\n @param initialCounterValue initial value for the atomic counter of the append/consume buffer.\n @param outBufferView output parameter into which this function writes the append buffer implementation details.\n Use function IRDescriptorTableSetBufferView() to bind an append/consume buffer to a descriptor table."]
+    pub unsafe fn IRRuntimeCreateAppendBufferView(
+        &self,
+        device: device_t,
+        appendBuffer: buffer_t,
+        appendBufferOffset: u64,
+        initialCounterValue: u32,
+        outBufferView: *mut IRBufferView,
+    ) {
+        (self.IRRuntimeCreateAppendBufferView)(
+            device,
+            appendBuffer,
+            appendBufferOffset,
+            initialCounterValue,
+            outBufferView,
+        )
+    }
+    #[doc = " Obtain the count of an append/consume buffer.\n @param bufferView buffer view representing the append/consume buffer for which to retrieve the counter.\n @return the current count of the append/consume buffer. This function doesn't cause a GPU-CPU sync."]
+    pub unsafe fn IRRuntimeGetAppendBufferCount(&self, bufferView: *mut IRBufferView) -> u32 {
+        (self.IRRuntimeGetAppendBufferCount)(bufferView)
+    }
+    #[doc = " Produce metadata from a buffer view description.\n @param view the view description to encode into the produced metadata."]
+    pub unsafe fn IRDescriptorTableGetBufferMetadata(&self, view: *mut IRBufferView) -> u64 {
+        (self.IRDescriptorTableGetBufferMetadata)(view)
+    }
+    #[doc = " Encode a buffer into the argument buffer.\n @param entry the pointer to the descriptor table entry to encode the buffer reference into.\n @param gpu_va the GPU address of the buffer to encode.\n @param metadata the metadata corresponding to the buffer view."]
+    pub unsafe fn IRDescriptorTableSetBuffer(
+        &self,
+        entry: *mut IRDescriptorTableEntry,
+        gpu_va: u64,
+        metadata: u64,
+    ) {
+        (self.IRDescriptorTableSetBuffer)(entry, gpu_va, metadata)
+    }
+    #[doc = " Encode a buffer into the argument buffer.\n Use this function to encode a buffer that may also include a reference as a texture from a shader.\n @param entry the pointer to the descriptor table entry to encode the buffer reference into.\n @param bufferView the buffer view description."]
+    pub unsafe fn IRDescriptorTableSetBufferView(
+        &self,
+        entry: *mut IRDescriptorTableEntry,
+        bufferView: *mut IRBufferView,
+    ) {
+        (self.IRDescriptorTableSetBufferView)(entry, bufferView)
+    }
+    #[doc = " Encode a texture into the argument buffer.\n @param entry the pointer to the descriptor table entry to encode the texture reference into.\n @param argument the Metal texture to encode.\n @param minLODClamp the minimum LOD clamp for the texture.\n @param metadata the metadata needs to be zero."]
+    pub unsafe fn IRDescriptorTableSetTexture(
+        &self,
+        entry: *mut IRDescriptorTableEntry,
+        argument: texture_t,
+        minLODClamp: f32,
+        metadata: u32,
+    ) {
+        (self.IRDescriptorTableSetTexture)(entry, argument, minLODClamp, metadata)
+    }
+    #[doc = " Encode a sampler into the argument buffer.\n The sampler needs to support argument buffers (supportsArgumentBuffers=YES).\n @param entry the pointer to the descriptor table entry to encode the sampler reference into.\n @param argument the Metal sampler to encode.\n @param lodBias the mip LOD bias for the sampler."]
+    pub unsafe fn IRDescriptorTableSetSampler(
+        &self,
+        entry: *mut IRDescriptorTableEntry,
+        argument: sampler_t,
+        lodBias: f32,
+    ) {
+        (self.IRDescriptorTableSetSampler)(entry, argument, lodBias)
+    }
+    #[doc = " Draw primitives providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the primitive type to draw.\n @param vertexStart the vertex start.\n @param vertexCount the vertex count.\n @param instanceCount the number of instances to draw.\n @param baseInstance the first instance number."]
+    pub unsafe fn IRRuntimeDrawPrimitives(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        vertexStart: u64,
+        vertexCount: u64,
+        instanceCount: u64,
+        baseInstance: u64,
+    ) {
+        (self.IRRuntimeDrawPrimitives)(
+            enc,
+            primitiveType,
+            vertexStart,
+            vertexCount,
+            instanceCount,
+            baseInstance,
+        )
+    }
+    #[doc = " Draw primitives providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the primitive type to draw.\n @param vertexStart the vertex start.\n @param vertexCount the vertex count.\n @param instanceCount the number of instances to draw."]
+    pub unsafe fn IRRuntimeDrawPrimitives1(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        vertexStart: u64,
+        vertexCount: u64,
+        instanceCount: u64,
+    ) {
+        (self.IRRuntimeDrawPrimitives1)(enc, primitiveType, vertexStart, vertexCount, instanceCount)
+    }
+    #[doc = " Draw primitives providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the primitive type to draw.\n @param vertexStart the vertex start.\n @param vertexCount the vertex count."]
+    pub unsafe fn IRRuntimeDrawPrimitives2(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        vertexStart: u64,
+        vertexCount: u64,
+    ) {
+        (self.IRRuntimeDrawPrimitives2)(enc, primitiveType, vertexStart, vertexCount)
+    }
+    #[doc = " Draw primitives indirect providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the type of primitives that the vertices assemble into.\n @param indirectBuffer the buffer from which the device reads draw call arguments as the MTLDrawPrimitivesIndirectArguments structure lays out.\n @param indirectBufferOffset the byte offset within indirectBuffer to start reading arguments from. This needs to be a multiple of 4 bytes."]
+    pub unsafe fn IRRuntimeDrawPrimitives3(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indirectBuffer: buffer_t,
+        indirectBufferOffset: u64,
+    ) {
+        (self.IRRuntimeDrawPrimitives3)(enc, primitiveType, indirectBuffer, indirectBufferOffset)
+    }
+    #[doc = " Draw indexed primitives providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the type of primitive that the vertices assemble into.\n @param indexCount for each instance the number of indices to read from the index buffer.\n @param indexType the data type of the indices.\n @param indexBuffer a buffer that contains indices to the vertices.\n @param indexBufferOffset the byte offset within indexBuffer to start reading indices from.\n @param instanceCount the number of instances to draw.\n @param baseVertex the first vertex to draw.\n @param baseInstance the first instance to draw."]
+    pub unsafe fn IRRuntimeDrawIndexedPrimitives(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexCount: u64,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+        instanceCount: u64,
+        baseVertex: i64,
+        baseInstance: u64,
+    ) {
+        (self.IRRuntimeDrawIndexedPrimitives)(
+            enc,
+            primitiveType,
+            indexCount,
+            indexType,
+            indexBuffer,
+            indexBufferOffset,
+            instanceCount,
+            baseVertex,
+            baseInstance,
+        )
+    }
+    #[doc = " Draw indexed primitives providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the type of primitive that the vertices assemble into.\n @param indexCount for each instance the number of indices to read from the index buffer.\n @param indexType the data type of the indices.\n @param indexBuffer a buffer that contains indices to the vertices.\n @param indexBufferOffset byte offset within indexBuffer to start reading indices from.\n @param instanceCount the number of instances to draw."]
+    pub unsafe fn IRRuntimeDrawIndexedPrimitives1(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexCount: u64,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+        instanceCount: u64,
+    ) {
+        (self.IRRuntimeDrawIndexedPrimitives1)(
+            enc,
+            primitiveType,
+            indexCount,
+            indexType,
+            indexBuffer,
+            indexBufferOffset,
+            instanceCount,
+        )
+    }
+    #[doc = " Draw indexed primitives providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the type of primitive that the vertices are assembled into.\n @param indexCount for each instance the number of indices to read from the index buffer.\n @param indexType the data type of the indices.\n @param indexBuffer a buffer that contains indices to the vertices.\n @param indexBufferOffset the byte offset within indexBuffer to start reading indices from."]
+    pub unsafe fn IRRuntimeDrawIndexedPrimitives2(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexCount: u64,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+    ) {
+        (self.IRRuntimeDrawIndexedPrimitives2)(
+            enc,
+            primitiveType,
+            indexCount,
+            indexType,
+            indexBuffer,
+            indexBufferOffset,
+        )
+    }
+    #[doc = " Draw indexed primitives indirect providing draw call parameter information to the vertex stage.\n @param enc the render command encoder.\n @param primitiveType the type of the primitive that the vertices assemble into.\n @param indexBuffer the buffer that contains indices to the vertices.\n @param indexBufferOffset the byte offset within indexBuffer to start reading indices from.\n @param indirectBuffer the buffer object from which the device reads draw call arguments as the MTLDrawIndexedPrimitivesIndirectArguments structure lays out.\n @param indirectBufferOffset the byte offset within indirectBuffer to start reading arguments from. This needs to be a multiple of 4 bytes."]
+    pub unsafe fn IRRuntimeDrawIndexedPrimitives3(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: primitivetype_t,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        indexBufferOffset: u64,
+        indirectBuffer: buffer_t,
+        indirectBufferOffset: u64,
+    ) {
+        (self.IRRuntimeDrawIndexedPrimitives3)(
+            enc,
+            primitiveType,
+            indexType,
+            indexBuffer,
+            indexBufferOffset,
+            indirectBuffer,
+            indirectBufferOffset,
+        )
+    }
+    #[doc = " You need to bind your vertex arrays and strides before issuing this call.\n Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,\n You need to manually flag residency for all referenced vertex buffers and for the index buffer."]
+    pub unsafe fn IRRuntimeDrawIndexedPrimitivesGeometryEmulation(
+        &self,
+        enc: renderencoder_t,
+        primitiveType: IRRuntimePrimitiveType,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        geometryPipelineConfig: IRRuntimeGeometryPipelineConfig,
+        instanceCount: u32,
+        indexCountPerInstance: u32,
+        startIndex: u32,
+        baseVertex: ::std::os::raw::c_int,
+        baseInstance: u32,
+    ) {
+        (self.IRRuntimeDrawIndexedPrimitivesGeometryEmulation)(
+            enc,
+            primitiveType,
+            indexType,
+            indexBuffer,
+            geometryPipelineConfig,
+            instanceCount,
+            indexCountPerInstance,
+            startIndex,
+            baseVertex,
+            baseInstance,
+        )
+    }
+    #[doc = " You need to bind your vertex arrays and strides before issuing this call.\n Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,\n You need to manually flag residency for all referenced vertex buffers and for the index buffer."]
+    pub unsafe fn IRRuntimeDrawIndexedPatchesTessellationEmulation(
+        &self,
+        enc: renderencoder_t,
+        primitiveTopology: IRRuntimePrimitiveType,
+        indexType: indextype_t,
+        indexBuffer: buffer_t,
+        tessellationPipelineConfig: IRRuntimeTessellationPipelineConfig,
+        instanceCount: u32,
+        indexCountPerInstance: u32,
+        baseInstance: u32,
+        baseVertex: i32,
+        startIndex: u32,
+    ) {
+        (self.IRRuntimeDrawIndexedPatchesTessellationEmulation)(
+            enc,
+            primitiveTopology,
+            indexType,
+            indexBuffer,
+            tessellationPipelineConfig,
+            instanceCount,
+            indexCountPerInstance,
+            baseInstance,
+            baseVertex,
+            startIndex,
+        )
+    }
+    #[doc = " Validate that the hull domain and tessellation stages are compatible from their reflection data.\n @param hsTessellatorOutputPrimitive the tessellator's output primitive which needs to match the geometry stage's input primitive. You can cast this parameter from IRTessellatorOutputPrimitive.\n @param gsInputPrimitive the input primitive type of the geometry stage. This value needs to match the hsTessellatorOutputPrimitive. You can cast this parameter from IRInputPrimitive.\n @param hsOutputControlPointSize the size of the point output from the hull stage. This value needs to match the input point size of the domain stage.\n @param dsInputControlPointSize the size of the input point to the domain stage. This value needs to match the point size output from the hull stage.\n @param hsPatchConstantsSize the size of the constants output from the hull stage. This value needs to match the size of the input constants to the domain stage.\n @param dsPatchConstantsSize the size of the input constants to the domain stage. This value needs to match the size of the constants output from the hull stage.\n @param hsOutputControlPointCount the number of control points output from the hull stage. This value needs to match the number of input control points to the domain stage.\n @param dsInputControlPointCount the number of input control points to the domain stage. This value needs to match the number of control points output from the hull stage."]
+    pub unsafe fn IRRuntimeValidateTessellationPipeline(
+        &self,
+        hsTessellatorOutputPrimitive: IRRuntimeTessellatorOutputPrimitive,
+        gsInputPrimitive: IRRuntimePrimitiveType,
+        hsOutputControlPointSize: u32,
+        dsInputControlPointSize: u32,
+        hsPatchConstantsSize: u32,
+        dsPatchConstantsSize: u32,
+        hsOutputControlPointCount: u32,
+        dsInputControlPointCount: u32,
+    ) -> bool {
+        (self.IRRuntimeValidateTessellationPipeline)(
+            hsTessellatorOutputPrimitive,
+            gsInputPrimitive,
+            hsOutputControlPointSize,
+            dsInputControlPointSize,
+            hsPatchConstantsSize,
+            dsPatchConstantsSize,
+            hsOutputControlPointCount,
+            dsInputControlPointCount,
+        )
+    }
+    #[doc = " Create a new mesh pipeline suitable for emulating a render pipeline with a geometry stage.\n @param device the device to use for creating the new pipeline.\n @param descriptor an object describing the origin libraries and function names to create the pipeline.\n @param error an output error object containing details about any error encountered during the creation process.\n @return a new mesh render pipeline or nil on error."]
+    pub unsafe fn IRRuntimeNewGeometryEmulationPipeline(
+        &self,
+        device: device_t,
+        descriptor: *const IRGeometryEmulationPipelineDescriptor,
+        error: *mut nserror_t,
+    ) -> renderpipelinestate_t {
+        (self.IRRuntimeNewGeometryEmulationPipeline)(device, descriptor, error)
+    }
+    #[doc = " Create a new mesh pipeline suitable for emulating a render pipeline with a hull stage, a domain stage, and a geometry stage.\n @param device the device to use for creating the new pipeline.\n @param descriptor an object describing the origin libraries and function names to create the pipeline.\n @param error an output error object containing details about any error encountered during the creation process.\n @return a new mesh render pipeline or nil on error."]
+    pub unsafe fn IRRuntimeNewGeometryTessellationEmulationPipeline(
+        &self,
+        device: device_t,
+        descriptor: *const IRGeometryTessellationEmulationPipelineDescriptor,
+        error: *mut nserror_t,
+    ) -> renderpipelinestate_t {
+        (self.IRRuntimeNewGeometryTessellationEmulationPipeline)(device, descriptor, error)
+    }
+}
