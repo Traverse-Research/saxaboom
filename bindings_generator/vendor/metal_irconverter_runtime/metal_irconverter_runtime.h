@@ -73,18 +73,6 @@ extern "C" {
 #define IR_INLINE       __attribute__((always_inline))
 #define IR_OVERLOADABLE __attribute__((overloadable))
 
-extern const uint64_t kIRArgumentBufferBindPoint;
-extern const uint64_t kIRDescriptorHeapBindPoint;
-extern const uint64_t kIRSamplerHeapBindPoint;
-extern const uint64_t kIRArgumentBufferHullDomainBindPoint;
-extern const uint64_t kIRArgumentBufferDrawArgumentsBindPoint;
-extern const uint64_t kIRArgumentBufferUniformsBindPoint;
-extern const uint64_t kIRVertexBufferBindPoint;
-extern const uint64_t kIRStageInAttributeStartIndex;
-extern const char*    kIRIndirectTriangleIntersectionFunctionName;
-extern const char*    kIRIndirectProceduralIntersectionFunctionName;
-extern const uint16_t kIRNonIndexedDraw;
-
 typedef struct IRDescriptorTableEntry
 {
     uint64_t gpuVA;
@@ -497,15 +485,6 @@ renderpipelinestate_t IRRuntimeNewGeometryTessellationEmulationPipeline(device_t
                                                                         const IRGeometryTessellationEmulationPipelineDescriptor* descriptor,
                                                                         nserror_t* error) API_AVAILABLE(macosx(14), ios(17));
 
-#ifdef IR_PRIVATE_IMPLEMENTATION
-
-#ifndef IR_RUNTIME_METALCPP
-#if !__has_feature(objc_arc)
-#error The implementation of this file needs to be generated in a module with ARC enabled when in Objective-C mode.
-#endif
-#endif
-
-
 const uint64_t kIRArgumentBufferBindPoint                   = 2;
 const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
 const uint64_t kIRDescriptorHeapBindPoint                   = 0;
@@ -524,6 +503,15 @@ const uint64_t kIRBufSizeMask       = 0xffffffff;
 const uint64_t kIRTexViewOffset     = 32;
 const uint64_t kIRTexViewMask       = 0xff;
 const uint64_t kIRTypedBufferOffset = 63;
+
+
+#ifdef IR_PRIVATE_IMPLEMENTATION
+
+#ifndef IR_RUNTIME_METALCPP
+#if !__has_feature(objc_arc)
+#error The implementation of this file needs to be generated in a module with ARC enabled when in Objective-C mode.
+#endif
+#endif
 
 
 IR_INLINE
