@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
-// Copyright 2023 Apple Inc.
+// Copyright 2023-2024 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ extern "C" {
 #include <stdint.h>
 #endif // __cplusplus
 
-const uint64_t kIRRuntimeTessellatorTablesBindPoint = 7;
-const uint32_t kIRRuntimeTessellatorTablesCountsAndOffsetLength = 32768;
-const uint32_t kIRRuntimeTessellatorTablesLookupTableLength     = 701114;
+extern const uint64_t kIRRuntimeTessellatorTablesBindPoint;
+extern const uint32_t kIRRuntimeTessellatorTablesCountsAndOffsetLength;
+extern const uint32_t kIRRuntimeTessellatorTablesLookupTableLength;
 
 /**
  * Query the size in bytes necessary to store the tessellator tables.
@@ -4208,6 +4208,10 @@ static const uint8_t kIRTessellatorTablesLookupTable[] = {
 0,1,0,0,1,3,1,2,2,3,2,2,3,3,3,2,4,3,4,2,5,3,5,2,6,3,6,2,7,3,7,2,8,3,8,2,9,3,9,2,10,3,10,2,11,3,11,2,12,3,12,2,13,3,13,2,14,3,14,2,15,3,15,2,16,3,16,2,17,3,17,2,18,3,18,2,19,3,19,2,20,3,20,2,21,3,21,2,22,3,22,2,23,3,23,2,24,3,24,2,25,3,25,2,26,3,26,2,27,3,27,2,28,3,28,2,29,3,29,2,30,3,30,2,31,3,31,2,32,3,32,2,33,3,33,2,34,3,34,2,35,3,35,2,36,3,36,2,37,3,37,2,38,3,38,2,39,3,39,2,40,3,40,2,41,3,41,2,42,3,42,2,43,3,43,2,44,3,44,2,45,3,45,2,46,3,46,2,47,3,47,2,48,3,48,2,49,3,49,2,50,3,50,2,51,3,51,2,52,3,52,2,53,3,53,2,54,3,54,2,55,3,55,2,56,3,56,2,57,3,57,2,58,3,58,2,59,3,59,2,60,3,60,2,61,3,61,2,62,3,62,2,63,3,// in:64 out:63 
 0,1,0,0,1,3,1,2,2,3,2,2,3,3,3,2,4,3,4,2,5,3,5,2,6,3,6,2,7,3,7,2,8,3,8,2,9,3,9,2,10,3,10,2,11,3,11,2,12,3,12,2,13,3,13,2,14,3,14,2,15,3,15,2,16,3,16,2,17,3,17,2,18,3,18,2,19,3,19,2,20,3,20,2,21,3,21,2,22,3,22,2,23,3,23,2,24,3,24,2,25,3,25,2,26,3,26,2,27,3,27,2,28,3,28,2,29,3,29,2,30,3,30,2,31,3,31,2,32,3,31,0,33,3,32,2,34,3,33,2,35,3,34,2,36,3,35,2,37,3,36,2,38,3,37,2,39,3,38,2,40,3,39,2,41,3,40,2,42,3,41,2,43,3,42,2,44,3,43,2,45,3,44,2,46,3,45,2,47,3,46,2,48,3,47,2,49,3,48,2,50,3,49,2,51,3,50,2,52,3,51,2,53,3,52,2,54,3,53,2,55,3,54,2,56,3,55,2,57,3,56,2,58,3,57,2,59,3,58,2,60,3,59,2,61,3,60,2,62,3,61,2,63,3,62,2,64,3,// in:64 out:64 
 }; 
+
+const uint64_t kIRRuntimeTessellatorTablesBindPoint = 7;
+const uint32_t kIRRuntimeTessellatorTablesCountsAndOffsetLength = 32768;
+const uint32_t kIRRuntimeTessellatorTablesLookupTableLength     = 701114;
 
 IR_INLINE
 uint64_t IRRuntimeTessellatorTablesSize(void)
