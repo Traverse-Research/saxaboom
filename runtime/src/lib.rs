@@ -104,18 +104,10 @@ impl ffi::IRDescriptorTableEntry {
     /// This function is a port of the `IRDescriptorTableGetBufferMetadata` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
     pub fn buffer_metadata(view: &BufferView<'_>) -> u64 {
-        let buf_size_mask = 0xffffffff;
-        let buf_size_offset = 0;
-        let tex_view_mask = 0xff;
-        let tex_view_offset = 32;
-        let typed_buffer_offset = 63;
-
-        let mut metadata = (view.buffer_size & buf_size_mask) << buf_size_offset;
-        metadata |=
-            (view.texture_view_offset_in_elements as u64 & tex_view_mask) << tex_view_offset;
-        if view.typed_buffer {
-            metadata |= 1 << typed_buffer_offset;
-        }
+        let mut metadata = (view.buffer_size & ffi::kIRBufSizeMask) << ffi::kIRBufSizeOffset;
+        metadata |= (view.texture_view_offset_in_elements as u64 & ffi::kIRTexViewMask)
+            << ffi::kIRTexViewOffset;
+        metadata |= (view.typed_buffer as u64) << ffi::kIRTypedBufferOffset;
         metadata
     }
 }
