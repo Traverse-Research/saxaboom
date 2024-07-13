@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
-// Copyright 2023 Apple Inc.
+// Copyright 2023-2024 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ typedef struct IRVertexInputTable
 {
     uint32_t NumDescriptorRanges;
     const IRDescriptorRange* pDescriptorRanges;
-} IRVertexInput;
+} IRVertexInputTable;
 
 typedef struct IRRootConstants
 {
@@ -188,7 +188,7 @@ typedef enum IRCompatibilityFlags
     IRCompatibilityFlagSamplerLODBias         = (1 << 3),
     IRCompatibilityFlagPositionInvariance     = (1 << 4),
     IRCompatibilityFlagSampleNanToZero        = (1 << 5),
-    
+    IRCompatibilityFlagTexWriteRoundingRTZ    = (1 << 6),
 } IRCompatibilityFlags;
 
 typedef struct IRStaticSamplerDescriptor
@@ -284,8 +284,8 @@ typedef struct IRInputElementDescriptor1
     IRFormat                    format;
     uint32_t                    inputSlot;
     uint32_t                    alignedByteOffset;
-    IRInputClassification       inputSlotClass;
     uint32_t                    instanceDataStepRate;
+    IRInputClassification       inputSlotClass;
 } IRInputElementDescriptor1;
 
 
@@ -343,6 +343,7 @@ enum IRErrorCode
     IRErrorCodeUnableToLinkModule,
     IRErrorCodeUnrecognizedDXILHeader,
     IRErrorCodeInvalidRaytracingAttribute,
+    IRErrorCodeNullHullShaderInputOutputMismatch,
     IRErrorCodeUnknown
 };
 
@@ -454,7 +455,7 @@ void IRCompilerDestroy(IRCompiler* compiler);
  * @param entryPointName optional entry point name to compile when converting a library with multiple entry points.
  * @param input input IR object.
  * @param error on return, if the compiler generates any errors, this optional out parameter contains error information. If an error occurs and this parameter is non-NULL, you must free it by calling IRErrorDestroy.
- * @return an IR Object containing MetalIR compiled from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
+ * @return an IR Object containing MetalIR compiled and linked from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
  */
 IRObject* IRCompilerAllocCompileAndLink(IRCompiler* compiler, const char* entryPointName, const IRObject* input, IRError** error);
 
@@ -546,7 +547,7 @@ void IRCompilerSetHitgroupType(IRCompiler* compiler, IRHitGroupType hitGroupType
 
 #define IRIntrinsicMaskClosestHitAll         0x7FFFFFFF
 #define IRIntrinsicMaskMissShaderAll         0x7FFF
-#define IRIntrinsicMaskCallableShaderAll     0x7FFF
+#define IRIntrinsicMaskCallableShaderAll     0x703F
 #define IRIntrinsicMaskAnyHitShaderAll       ((uint64_t)-1)
 #define IRRayTracingUnlimitedRecursionDepth  (-1)
 
@@ -695,6 +696,13 @@ void IRCompilerSetMinimumGPUFamily(IRCompiler* compiler, IRGPUFamily family);
  */
 void IRCompilerIgnoreRootSignature(IRCompiler* compiler, bool ignoreEmbeddedRootSignature);
 
+/**
+ * Set compiler settings to ignore debug information.
+ * @param compiler compiler for which to set the flags.
+ * @param ignoreDebugInformation whether dxil debug information should be ignored. Defaults to false.
+ */
+void IRCompilerIgnoreDebugInformation(IRCompiler* compiler, bool ignoreDebugInformation);
+
 typedef enum IROperatingSystem
 {
     IROperatingSystem_macOS,
@@ -752,7 +760,7 @@ dispatch_data_t IRMetalLibGetBytecodeData(const IRMetalLibBinary* lib);
 #endif // __APPLE__
 
 /**
- * Serialize an MetalIR object's shader bytecode to disk.
+ * Serialize a MetalIR object's shader bytecode to disk.
  * @param outputPath path into which to write the serialized MetalIR.
  * @param obj IRObject containing the bytecode to serialize.
  * @param stage shader stage to serialize.
@@ -1256,12 +1264,33 @@ const char* IRVersionedRootSignatureDescriptorAllocStringAndSerialize(IRVersione
 void IRVersionedRootSignatureDescriptorFreeString(const char* serialized);
 
 /**
- * Deserialized a string representation of a root signature into a root signature object.
+ * Deserialize a string representation of a root signature into a root signature object.
  * @param serialized a string representation of a root signature.
  * @param rootSignatureDescriptor root signature object into which to deserialize the root signature.
  * @return true if deserialization is successful, false otherwise.
  */
 bool IRVersionedRootSignatureDescriptorDeserialize(const char* serialized, IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+
+/**
+ * Serialize an input layout descriptor version 1 into a string.
+ * @param inputLayoutDescriptor descriptor to serialize.
+ * @return a string representation of the input layout descriptor. You need to release this string by calling IRInputLayoutDescriptor1FreeString.
+ */
+const char* IRInputLayoutDescriptor1AllocStringAndSerialize(IRInputLayoutDescriptor1* inputLayoutDescriptor);
+
+/**
+ * Release a string allocated by IRInputLayoutDescriptor1AllocStringAndSerialize.
+ * @param serialized string to release.
+ */
+void IRInputLayoutDescriptor1FreeString(const char* serialized);
+
+/**
+ * Deserialize a string representation of an input layout descriptor version 1 into an IRInputLayoutDescriptor1 structure.
+ * @param serialized a string representation of an input layout descriptor version 1.
+ * @param inputLayoutDescriptor input layout descriptor version 1 object into which to deserialized the input layout descriptor.
+ * @return true if deserialization is successful, false otherwise.
+ */
+bool IRInputLayoutDescriptor1Deserialize(const char* serialized, IRInputLayoutDescriptor1* inputLayoutDescriptor);
 
 #ifdef __cplusplus
 }
