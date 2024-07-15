@@ -12,4 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Publish
-        run: cargo publish --token ${{ secrets.cratesio_token }}
+        run: |
+          cargo publish --token ${{ secrets.cratesio_token }}
+          cargo publish --token ${{ secrets.cratesio_token }} -p saxaboom-runtime
