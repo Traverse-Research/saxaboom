@@ -8,7 +8,7 @@ homepage = "https://traverseresearch.nl"
 repository = "https://github.com/Traverse-Research/saxaboom"
 description = "Runtime definitions for Metal Shader Converter"
 categories = ["api-bindings", "external-ffi-bindings", "graphics"]
-keywords = ["metal", "shader", "metal_irconverter", "apple", "macos", "ios"]
+keywords = ["metal", "shader", "metal_irconverter", "apple", "macos"]
 
 [package.metadata.docs.rs]
 targets = [
