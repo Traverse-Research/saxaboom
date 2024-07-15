@@ -5,7 +5,10 @@ on:
 jobs:
   rust:
     name: Lint Rust code
-    runs-on: ubuntu-latest
+    # Theoretically saxaboom runs on Windows as well, but the metal dependency
+    # inside saxaboom-runtime must be tested on or cross-compiled for an Apple
+    # target.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Cargo fmt
