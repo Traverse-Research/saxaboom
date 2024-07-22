@@ -117,4 +117,13 @@ impl ParseCallbacks for RenameCallback {
         }
         None
     }
+
+    fn int_macro(&self, name: &str, _value: i64) -> Option<bindgen::callbacks::IntKind> {
+        if name.starts_with("IRIntrinsicMask") {
+            // Match the argument type passed to IRCompilerSetRayTracingPipelineArguments
+            Some(bindgen::callbacks::IntKind::U64)
+        } else {
+            None
+        }
+    }
 }

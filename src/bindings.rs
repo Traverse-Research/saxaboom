@@ -4,9 +4,9 @@ pub const IR_VERSION_MAJOR: u32 = 2;
 pub const IR_VERSION_MINOR: u32 = 0;
 pub const IR_VERSION_PATCH: u32 = 4;
 pub const IRDescriptorRangeOffsetAppend: u32 = 4294967295;
-pub const IRIntrinsicMaskClosestHitAll: u32 = 2147483647;
-pub const IRIntrinsicMaskMissShaderAll: u32 = 32767;
-pub const IRIntrinsicMaskCallableShaderAll: u32 = 28735;
+pub const IRIntrinsicMaskClosestHitAll: u64 = 2147483647;
+pub const IRIntrinsicMaskMissShaderAll: u64 = 32767;
+pub const IRIntrinsicMaskCallableShaderAll: u64 = 28735;
 pub const IRRayTracingUnlimitedRecursionDepth: i32 = -1;
 #[repr(u32)]
 #[non_exhaustive]
