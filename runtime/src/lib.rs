@@ -1,4 +1,4 @@
-//! Contains `repr(C)` definitions for structures used at runtime.
+#![doc = include_str!("../README.md")]
 
 #[allow(
     clippy::useless_transmute,
@@ -30,8 +30,12 @@ impl ffi::IRDescriptorTableEntry {
     ///
     /// This function is a port of the `IRDescriptorTableSetBuffer` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
-    // TODO: The docs say  "buffer view" for metadata: can we take a BufferView struct and set `Self::buffer_metadata()` instead?
-    // There are special constructors for atomic/counter buffers after all...
+    // TODO: This function seems to have no reason to exist, in favour of `buffer_view()` the
+    // `metadata` argument here needs to be constructed in the exact same way.  However, for a
+    // full buffer descriptor, setting the metadata to `0` seems to be fine?
+    // TODO: The docs say  "buffer view" for metadata: can we take a BufferView struct and set
+    // `Self::buffer_metadata()` instead? There are special constructors for atomic/counter buffers
+    // after all...
     #[doc(alias = "IRDescriptorTableSetBuffer")]
     pub fn buffer(gpu_address: u64, metadata: u64) -> Self {
         Self {

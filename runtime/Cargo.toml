@@ -20,4 +20,4 @@ targets = [
 ]
 
 [dependencies]
-metal = "0.29"
+metal = { version = "0.29", default-features = false }
