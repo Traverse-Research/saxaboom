@@ -379,6 +379,33 @@ impl IRCompiler {
         }
     }
 
+    #[doc(alias = "IRCompilerSetMinimumDeploymentTarget")]
+    pub fn set_minimum_deployment_target(
+        &mut self,
+        operating_system: ffi::IROperatingSystem,
+        version: &CStr,
+    ) {
+        unsafe {
+            self.funcs.IRCompilerSetMinimumDeploymentTarget(
+                self.me.as_ptr(),
+                operating_system,
+                version.as_ptr(),
+            )
+        }
+    }
+
+    /// See <https://developer.apple.com/documentation/metal/mtlgpufamily> for a list of GPU
+    /// families and the hardware that they correspond to.
+    /// See <https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf> for a specific
+    /// table denoting supported features per GPU family.
+    #[doc(alias = "IRCompilerSetMinimumGPUFamily")]
+    pub fn set_minimum_gpu_family(&mut self, family: ffi::IRGPUFamily) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetMinimumGPUFamily(self.me.as_ptr(), family)
+        }
+    }
+
     #[doc(alias = "IRCompilerAllocCompileAndLink")]
     pub fn alloc_compile_and_link(
         &self,
