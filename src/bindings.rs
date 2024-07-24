@@ -1301,8 +1301,8 @@ pub struct metal_irconverter {
         unsafe extern "C" fn(compiler: *mut IRCompiler, family: IRGPUFamily),
     pub IRCompilerIgnoreRootSignature:
         unsafe extern "C" fn(compiler: *mut IRCompiler, ignoreEmbeddedRootSignature: bool),
-    pub IRCompilerIgnoreDebugInformation:
-        unsafe extern "C" fn(compiler: *mut IRCompiler, ignoreDebugInformation: bool),
+    // pub IRCompilerIgnoreDebugInformation:
+    //     unsafe extern "C" fn(compiler: *mut IRCompiler, ignoreDebugInformation: bool),
     pub IRCompilerSetMinimumDeploymentTarget: unsafe extern "C" fn(
         compiler: *mut IRCompiler,
         operatingSystem: IROperatingSystem,
@@ -1429,16 +1429,16 @@ pub struct metal_irconverter {
         serialized: *const ::std::os::raw::c_char,
         rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
     ) -> bool,
-    pub IRInputLayoutDescriptor1AllocStringAndSerialize:
-        unsafe extern "C" fn(
-            inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
-        ) -> *const ::std::os::raw::c_char,
-    pub IRInputLayoutDescriptor1FreeString:
-        unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
-    pub IRInputLayoutDescriptor1Deserialize: unsafe extern "C" fn(
-        serialized: *const ::std::os::raw::c_char,
-        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
-    ) -> bool,
+    // pub IRInputLayoutDescriptor1AllocStringAndSerialize:
+    //     unsafe extern "C" fn(
+    //         inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    //     ) -> *const ::std::os::raw::c_char,
+    // pub IRInputLayoutDescriptor1FreeString:
+    //     unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
+    // pub IRInputLayoutDescriptor1Deserialize: unsafe extern "C" fn(
+    //     serialized: *const ::std::os::raw::c_char,
+    //     inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    // ) -> bool,
 }
 impl metal_irconverter {
     pub unsafe fn new<P>(path: P) -> Result<Self, ::libloading::Error>
@@ -1533,9 +1533,9 @@ impl metal_irconverter {
         let IRCompilerIgnoreRootSignature = __library
             .get(b"IRCompilerIgnoreRootSignature\0")
             .map(|sym| *sym)?;
-        let IRCompilerIgnoreDebugInformation = __library
-            .get(b"IRCompilerIgnoreDebugInformation\0")
-            .map(|sym| *sym)?;
+        // let IRCompilerIgnoreDebugInformation = __library
+        //     .get(b"IRCompilerIgnoreDebugInformation\0")
+        //     .map(|sym| *sym)?;
         let IRCompilerSetMinimumDeploymentTarget = __library
             .get(b"IRCompilerSetMinimumDeploymentTarget\0")
             .map(|sym| *sym)?;
@@ -1653,15 +1653,15 @@ impl metal_irconverter {
         let IRVersionedRootSignatureDescriptorDeserialize = __library
             .get(b"IRVersionedRootSignatureDescriptorDeserialize\0")
             .map(|sym| *sym)?;
-        let IRInputLayoutDescriptor1AllocStringAndSerialize = __library
-            .get(b"IRInputLayoutDescriptor1AllocStringAndSerialize\0")
-            .map(|sym| *sym)?;
-        let IRInputLayoutDescriptor1FreeString = __library
-            .get(b"IRInputLayoutDescriptor1FreeString\0")
-            .map(|sym| *sym)?;
-        let IRInputLayoutDescriptor1Deserialize = __library
-            .get(b"IRInputLayoutDescriptor1Deserialize\0")
-            .map(|sym| *sym)?;
+        // let IRInputLayoutDescriptor1AllocStringAndSerialize = __library
+        //     .get(b"IRInputLayoutDescriptor1AllocStringAndSerialize\0")
+        //     .map(|sym| *sym)?;
+        // let IRInputLayoutDescriptor1FreeString = __library
+        //     .get(b"IRInputLayoutDescriptor1FreeString\0")
+        //     .map(|sym| *sym)?;
+        // let IRInputLayoutDescriptor1Deserialize = __library
+        //     .get(b"IRInputLayoutDescriptor1Deserialize\0")
+        //     .map(|sym| *sym)?;
         Ok(metal_irconverter {
             __library,
             IRErrorGetCode,
@@ -1698,7 +1698,7 @@ impl metal_irconverter {
             IRCompilerSetEntryPointName,
             IRCompilerSetMinimumGPUFamily,
             IRCompilerIgnoreRootSignature,
-            IRCompilerIgnoreDebugInformation,
+            // IRCompilerIgnoreDebugInformation,
             IRCompilerSetMinimumDeploymentTarget,
             IRMetalLibBinaryCreate,
             IRMetalLibBinaryDestroy,
@@ -1740,9 +1740,9 @@ impl metal_irconverter {
             IRVersionedRootSignatureDescriptorAllocStringAndSerialize,
             IRVersionedRootSignatureDescriptorFreeString,
             IRVersionedRootSignatureDescriptorDeserialize,
-            IRInputLayoutDescriptor1AllocStringAndSerialize,
-            IRInputLayoutDescriptor1FreeString,
-            IRInputLayoutDescriptor1Deserialize,
+            // IRInputLayoutDescriptor1AllocStringAndSerialize,
+            // IRInputLayoutDescriptor1FreeString,
+            // IRInputLayoutDescriptor1Deserialize,
         })
     }
     #[doc = " Obtain the error code of an error.\n @param error error object to query.\n @return error code."]
@@ -2010,14 +2010,14 @@ impl metal_irconverter {
     ) {
         (self.IRCompilerIgnoreRootSignature)(compiler, ignoreEmbeddedRootSignature)
     }
-    #[doc = " Set compiler settings to ignore debug information.\n @param compiler compiler for which to set the flags.\n @param ignoreDebugInformation whether dxil debug information should be ignored. Defaults to false."]
-    pub unsafe fn IRCompilerIgnoreDebugInformation(
-        &self,
-        compiler: *mut IRCompiler,
-        ignoreDebugInformation: bool,
-    ) {
-        (self.IRCompilerIgnoreDebugInformation)(compiler, ignoreDebugInformation)
-    }
+    // #[doc = " Set compiler settings to ignore debug information.\n @param compiler compiler for which to set the flags.\n @param ignoreDebugInformation whether dxil debug information should be ignored. Defaults to false."]
+    // pub unsafe fn IRCompilerIgnoreDebugInformation(
+    //     &self,
+    //     compiler: *mut IRCompiler,
+    //     ignoreDebugInformation: bool,
+    // ) {
+    //     (self.IRCompilerIgnoreDebugInformation)(compiler, ignoreDebugInformation)
+    // }
     #[doc = " Set the minimum operating system software version target for Metal IR code generation.\n Targetting a newer software version may enable the compiler to emi MetalIR further optimized for newer macOS and iOS releases, but it may render it incompatible with older operating system versions.\n Setting a minimum deployment target newer than your SDK may produce an `IRErrorCodeUnableToLinkModule` error.\n @param compiler compiler to configure.\n @param operatingSystem operating system name.\n @param version operating system version, such as \"13.0.0\" or \"16.0.0\"."]
     pub unsafe fn IRCompilerSetMinimumDeploymentTarget(
         &self,
@@ -2310,26 +2310,26 @@ impl metal_irconverter {
     ) -> bool {
         (self.IRVersionedRootSignatureDescriptorDeserialize)(serialized, rootSignatureDescriptor)
     }
-    #[doc = " Serialize an input layout descriptor version 1 into a string.\n @param inputLayoutDescriptor descriptor to serialize.\n @return a string representation of the input layout descriptor. You need to release this string by calling IRInputLayoutDescriptor1FreeString."]
-    pub unsafe fn IRInputLayoutDescriptor1AllocStringAndSerialize(
-        &self,
-        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
-    ) -> *const ::std::os::raw::c_char {
-        (self.IRInputLayoutDescriptor1AllocStringAndSerialize)(inputLayoutDescriptor)
-    }
-    #[doc = " Release a string allocated by IRInputLayoutDescriptor1AllocStringAndSerialize.\n @param serialized string to release."]
-    pub unsafe fn IRInputLayoutDescriptor1FreeString(
-        &self,
-        serialized: *const ::std::os::raw::c_char,
-    ) {
-        (self.IRInputLayoutDescriptor1FreeString)(serialized)
-    }
-    #[doc = " Deserialize a string representation of an input layout descriptor version 1 into an IRInputLayoutDescriptor1 structure.\n @param serialized a string representation of an input layout descriptor version 1.\n @param inputLayoutDescriptor input layout descriptor version 1 object into which to deserialized the input layout descriptor.\n @return true if deserialization is successful, false otherwise."]
-    pub unsafe fn IRInputLayoutDescriptor1Deserialize(
-        &self,
-        serialized: *const ::std::os::raw::c_char,
-        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
-    ) -> bool {
-        (self.IRInputLayoutDescriptor1Deserialize)(serialized, inputLayoutDescriptor)
-    }
+    // #[doc = " Serialize an input layout descriptor version 1 into a string.\n @param inputLayoutDescriptor descriptor to serialize.\n @return a string representation of the input layout descriptor. You need to release this string by calling IRInputLayoutDescriptor1FreeString."]
+    // pub unsafe fn IRInputLayoutDescriptor1AllocStringAndSerialize(
+    //     &self,
+    //     inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    // ) -> *const ::std::os::raw::c_char {
+    //     (self.IRInputLayoutDescriptor1AllocStringAndSerialize)(inputLayoutDescriptor)
+    // }
+    // #[doc = " Release a string allocated by IRInputLayoutDescriptor1AllocStringAndSerialize.\n @param serialized string to release."]
+    // pub unsafe fn IRInputLayoutDescriptor1FreeString(
+    //     &self,
+    //     serialized: *const ::std::os::raw::c_char,
+    // ) {
+    //     (self.IRInputLayoutDescriptor1FreeString)(serialized)
+    // }
+    // #[doc = " Deserialize a string representation of an input layout descriptor version 1 into an IRInputLayoutDescriptor1 structure.\n @param serialized a string representation of an input layout descriptor version 1.\n @param inputLayoutDescriptor input layout descriptor version 1 object into which to deserialized the input layout descriptor.\n @return true if deserialization is successful, false otherwise."]
+    // pub unsafe fn IRInputLayoutDescriptor1Deserialize(
+    //     &self,
+    //     serialized: *const ::std::os::raw::c_char,
+    //     inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    // ) -> bool {
+    //     (self.IRInputLayoutDescriptor1Deserialize)(serialized, inputLayoutDescriptor)
+    // }
 }
