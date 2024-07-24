@@ -15,7 +15,7 @@ fn compiler_bindings() {
         .header(header.to_str().unwrap())
         .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&["-I", include_dir.to_str().unwrap()])
-        .dynamic_link_require_all(true)
+        .dynamic_link_require_all(false)
         .dynamic_library_name("metal_irconverter")
         .layout_tests(false)
         .default_enum_style(bindgen::EnumVariation::Rust {

@@ -80,13 +80,13 @@ where
         }
     }
 }
-pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct MTLDispatchThreadgroupsIndirectArguments {
     pub threadgroupsPerGrid: [u32; 3usize],
 }
 pub type resourceid_t = MTLResourceID;
+pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRDescriptorTableEntry {
@@ -475,6 +475,7 @@ pub const kIRIndirectTriangleIntersectionFunctionName: &[u8; 51] =
     b"irconverter.wrapper.intersection.function.triangle\0";
 pub const kIRIndirectProceduralIntersectionFunctionName: &[u8; 53] =
     b"irconverter.wrapper.intersection.function.procedural\0";
+pub const kIRNonIndexedDraw: u16 = 0;
 pub const kIRBufSizeOffset: u64 = 0;
 pub const kIRBufSizeMask: u64 = 4294967295;
 pub const kIRTexViewOffset: u64 = 32;
