@@ -5,6 +5,7 @@ use std::{
     ffi::{c_char, CStr, OsStr},
     fmt,
     mem::MaybeUninit,
+    ops::Deref,
     ptr::NonNull,
     sync::Arc,
 };
@@ -121,10 +122,7 @@ impl IRShaderReflection {
     }
 
     #[doc(alias = "IRShaderReflectionCopyComputeInfo")]
-    pub fn compute_info(
-        &self,
-        version: ffi::IRReflectionVersion,
-    ) -> Option<ffi::IRVersionedCSInfo> {
+    pub fn compute_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedCSInfo> {
         let mut info = MaybeUninit::uninit();
         if unsafe {
             self.funcs.IRShaderReflectionCopyComputeInfo(
@@ -133,10 +131,35 @@ impl IRShaderReflection {
                 info.as_mut_ptr(),
             )
         } {
-            Some(unsafe { info.assume_init() })
+            Some(IRVersionedCSInfo {
+                me: unsafe { info.assume_init() },
+                funcs: self.funcs.clone(),
+            })
         } else {
             None
         }
+    }
+}
+
+pub struct IRVersionedCSInfo {
+    me: ffi::IRVersionedCSInfo,
+    funcs: Arc<bindings::metal_irconverter>,
+}
+
+impl Deref for IRVersionedCSInfo {
+    type Target = ffi::IRVersionedCSInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.me
+    }
+}
+
+impl Drop for IRVersionedCSInfo {
+    fn drop(&mut self) {
+        assert!(unsafe {
+            self.funcs
+                .IRShaderReflectionReleaseComputeInfo(&mut self.me)
+        })
     }
 }
 
