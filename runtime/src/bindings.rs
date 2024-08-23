@@ -118,6 +118,24 @@ extern "C" {
     pub static mut kIRIndirectProceduralIntersectionFunctionName: *const ::std::os::raw::c_char;
 }
 extern "C" {
+    pub static mut kIRTrianglePassthroughGeometryShader: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRLinePassthroughGeometryShader: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRPointPassthroughGeometryShader: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRFunctionGroupRayGeneration: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRFunctionGroupClosestHit: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRFunctionGroupMiss: *const ::std::os::raw::c_char;
+}
+extern "C" {
     pub static kIRNonIndexedDraw: u16;
 }
 #[repr(C)]

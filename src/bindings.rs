@@ -2,7 +2,7 @@
 
 pub const IR_VERSION_MAJOR: u32 = 2;
 pub const IR_VERSION_MINOR: u32 = 0;
-pub const IR_VERSION_PATCH: u32 = 0;
+pub const IR_VERSION_PATCH: u32 = 3;
 pub const IRDescriptorRangeOffsetAppend: u32 = 4294967295;
 pub const IRIntrinsicMaskClosestHitAll: u32 = 2147483647;
 pub const IRIntrinsicMaskMissShaderAll: u32 = 32767;
@@ -841,6 +841,13 @@ pub struct IRRaytracingPipelineFlags(pub ::std::os::raw::c_uint);
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum IRRayGenerationCompilationMode {
+    Kernel = 0,
+    VisibleFunction = 1,
+}
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRErrorCode {
     NoError = 0,
     ShaderRequiresRootSignature = 1,
@@ -1274,6 +1281,7 @@ pub struct metal_irconverter {
         anyHit: u64,
         callableArgs: u64,
         maxRecursiveDepth: ::std::os::raw::c_int,
+        rayGenerationCompilationMode: IRRayGenerationCompilationMode,
     ),
     pub IRCompilerSetCompatibilityFlags:
         unsafe extern "C" fn(compiler: *mut IRCompiler, flags: IRCompatibilityFlags),
@@ -1412,32 +1420,54 @@ pub struct metal_irconverter {
     ),
     pub IRShaderReflectionAllocStringAndSerialize:
         unsafe extern "C" fn(reflection: *mut IRShaderReflection) -> *const ::std::os::raw::c_char,
+    pub IRShaderReflectionCopyJSONString: unsafe extern "C" fn(
+        reflection: *const IRShaderReflection,
+    )
+        -> *const ::std::os::raw::c_char,
     pub IRShaderReflectionFreeString:
+        unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
+    pub IRShaderReflectionReleaseString:
         unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
     pub IRShaderReflectionDeserialize: unsafe extern "C" fn(
         blob: *const ::std::os::raw::c_char,
         reflection: *mut IRShaderReflection,
     ),
+    pub IRShaderReflectionCreateFromJSON:
+        unsafe extern "C" fn(json: *const ::std::os::raw::c_char) -> *mut IRShaderReflection,
     pub IRVersionedRootSignatureDescriptorAllocStringAndSerialize:
+        unsafe extern "C" fn(
+            rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+        ) -> *const ::std::os::raw::c_char,
+    pub IRVersionedRootSignatureDescriptorCopyJSONString:
         unsafe extern "C" fn(
             rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
         ) -> *const ::std::os::raw::c_char,
     pub IRVersionedRootSignatureDescriptorFreeString:
         unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
+    pub IRVersionedRootSignatureDescriptorReleaseString:
+        unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
     pub IRVersionedRootSignatureDescriptorDeserialize: unsafe extern "C" fn(
         serialized: *const ::std::os::raw::c_char,
         rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
     ) -> bool,
-    pub IRInputLayoutDescriptor1AllocStringAndSerialize:
+    pub IRVersionedRootSignatureDescriptorCreateFromJSON:
+        unsafe extern "C" fn(
+            serialized: *const ::std::os::raw::c_char,
+        ) -> *mut IRVersionedRootSignatureDescriptor,
+    pub IRVersionedRootSignatureDescriptorRelease:
+        unsafe extern "C" fn(rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor),
+    pub IRInputLayoutDescriptor1CopyJSONString:
         unsafe extern "C" fn(
             inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
         ) -> *const ::std::os::raw::c_char,
-    pub IRInputLayoutDescriptor1FreeString:
+    pub IRInputLayoutDescriptor1ReleaseString:
         unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
-    pub IRInputLayoutDescriptor1Deserialize: unsafe extern "C" fn(
-        serialized: *const ::std::os::raw::c_char,
-        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
-    ) -> bool,
+    pub IRInputLayoutDescriptor1CreateFromJSON:
+        unsafe extern "C" fn(
+            serialized: *const ::std::os::raw::c_char,
+        ) -> *mut IRInputLayoutDescriptor1,
+    pub IRInputLayoutDescriptor1Release:
+        unsafe extern "C" fn(inputLayoutDescriptor: *mut IRInputLayoutDescriptor1),
 }
 impl metal_irconverter {
     pub unsafe fn new<P>(path: P) -> Result<Self, ::libloading::Error>
@@ -1637,29 +1667,53 @@ impl metal_irconverter {
         let IRShaderReflectionAllocStringAndSerialize = __library
             .get(b"IRShaderReflectionAllocStringAndSerialize\0")
             .map(|sym| *sym)?;
+        let IRShaderReflectionCopyJSONString = __library
+            .get(b"IRShaderReflectionCopyJSONString\0")
+            .map(|sym| *sym)?;
         let IRShaderReflectionFreeString = __library
             .get(b"IRShaderReflectionFreeString\0")
+            .map(|sym| *sym)?;
+        let IRShaderReflectionReleaseString = __library
+            .get(b"IRShaderReflectionReleaseString\0")
             .map(|sym| *sym)?;
         let IRShaderReflectionDeserialize = __library
             .get(b"IRShaderReflectionDeserialize\0")
             .map(|sym| *sym)?;
+        let IRShaderReflectionCreateFromJSON = __library
+            .get(b"IRShaderReflectionCreateFromJSON\0")
+            .map(|sym| *sym)?;
         let IRVersionedRootSignatureDescriptorAllocStringAndSerialize = __library
             .get(b"IRVersionedRootSignatureDescriptorAllocStringAndSerialize\0")
+            .map(|sym| *sym)?;
+        let IRVersionedRootSignatureDescriptorCopyJSONString = __library
+            .get(b"IRVersionedRootSignatureDescriptorCopyJSONString\0")
             .map(|sym| *sym)?;
         let IRVersionedRootSignatureDescriptorFreeString = __library
             .get(b"IRVersionedRootSignatureDescriptorFreeString\0")
             .map(|sym| *sym)?;
+        let IRVersionedRootSignatureDescriptorReleaseString = __library
+            .get(b"IRVersionedRootSignatureDescriptorReleaseString\0")
+            .map(|sym| *sym)?;
         let IRVersionedRootSignatureDescriptorDeserialize = __library
             .get(b"IRVersionedRootSignatureDescriptorDeserialize\0")
             .map(|sym| *sym)?;
-        let IRInputLayoutDescriptor1AllocStringAndSerialize = __library
-            .get(b"IRInputLayoutDescriptor1AllocStringAndSerialize\0")
+        let IRVersionedRootSignatureDescriptorCreateFromJSON = __library
+            .get(b"IRVersionedRootSignatureDescriptorCreateFromJSON\0")
             .map(|sym| *sym)?;
-        let IRInputLayoutDescriptor1FreeString = __library
-            .get(b"IRInputLayoutDescriptor1FreeString\0")
+        let IRVersionedRootSignatureDescriptorRelease = __library
+            .get(b"IRVersionedRootSignatureDescriptorRelease\0")
             .map(|sym| *sym)?;
-        let IRInputLayoutDescriptor1Deserialize = __library
-            .get(b"IRInputLayoutDescriptor1Deserialize\0")
+        let IRInputLayoutDescriptor1CopyJSONString = __library
+            .get(b"IRInputLayoutDescriptor1CopyJSONString\0")
+            .map(|sym| *sym)?;
+        let IRInputLayoutDescriptor1ReleaseString = __library
+            .get(b"IRInputLayoutDescriptor1ReleaseString\0")
+            .map(|sym| *sym)?;
+        let IRInputLayoutDescriptor1CreateFromJSON = __library
+            .get(b"IRInputLayoutDescriptor1CreateFromJSON\0")
+            .map(|sym| *sym)?;
+        let IRInputLayoutDescriptor1Release = __library
+            .get(b"IRInputLayoutDescriptor1Release\0")
             .map(|sym| *sym)?;
         Ok(metal_irconverter {
             __library,
@@ -1734,14 +1788,22 @@ impl metal_irconverter {
             IRRootSignatureGetResourceCount,
             IRRootSignatureGetResourceLocations,
             IRShaderReflectionAllocStringAndSerialize,
+            IRShaderReflectionCopyJSONString,
             IRShaderReflectionFreeString,
+            IRShaderReflectionReleaseString,
             IRShaderReflectionDeserialize,
+            IRShaderReflectionCreateFromJSON,
             IRVersionedRootSignatureDescriptorAllocStringAndSerialize,
+            IRVersionedRootSignatureDescriptorCopyJSONString,
             IRVersionedRootSignatureDescriptorFreeString,
+            IRVersionedRootSignatureDescriptorReleaseString,
             IRVersionedRootSignatureDescriptorDeserialize,
-            IRInputLayoutDescriptor1AllocStringAndSerialize,
-            IRInputLayoutDescriptor1FreeString,
-            IRInputLayoutDescriptor1Deserialize,
+            IRVersionedRootSignatureDescriptorCreateFromJSON,
+            IRVersionedRootSignatureDescriptorRelease,
+            IRInputLayoutDescriptor1CopyJSONString,
+            IRInputLayoutDescriptor1ReleaseString,
+            IRInputLayoutDescriptor1CreateFromJSON,
+            IRInputLayoutDescriptor1Release,
         })
     }
     #[doc = " Obtain the error code of an error.\n @param error error object to query.\n @return error code."]
@@ -1902,7 +1964,7 @@ impl metal_irconverter {
     ) -> u64 {
         (self.IRObjectGatherRaytracingIntrinsics)(input, entryPoint)
     }
-    #[doc = " Configure a compiler with upfront information to generate an optimal interface between ray tracing functions.\n Calling this function is optional, but when omitted, the compiler needs to assume a worst-case scenario, significantly affecting runtime performance.\n Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.\n After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.\n Specifying a mask and then adding additional shaders to a pipeline that don't conform to it causes undefined behavior.\n @param compiler compiler to configure\n @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses.\n @param raytracingPipelineFlags flags for the ray tracing pipeline your application builds from these shaders.\n @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`).\n @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`).\n @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`).\n @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`).\n @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.\n @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail."]
+    #[doc = " Configure a compiler with upfront information to generate an optimal interface between ray tracing functions.\n Calling this function is optional, but when omitted, the compiler needs to assume a worst-case scenario, significantly affecting runtime performance.\n Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.\n After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.\n Specifying a mask and then adding additional shaders to a pipeline that don't conform to it causes undefined behavior.\n @param compiler compiler to configure\n @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses.\n @param raytracingPipelineFlags flags for the ray tracing pipeline your application builds from these shaders.\n @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`).\n @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`).\n @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`).\n @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`).\n @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.\n @param rayGenerationCompilationMode set the ray-generation shader compilation mode to compile either as a compute kernel, or as a visible function for a shader binding table.\n @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail."]
     pub unsafe fn IRCompilerSetRayTracingPipelineArguments(
         &self,
         compiler: *mut IRCompiler,
@@ -1913,6 +1975,7 @@ impl metal_irconverter {
         anyHit: u64,
         callableArgs: u64,
         maxRecursiveDepth: ::std::os::raw::c_int,
+        rayGenerationCompilationMode: IRRayGenerationCompilationMode,
     ) {
         (self.IRCompilerSetRayTracingPipelineArguments)(
             compiler,
@@ -1923,6 +1986,7 @@ impl metal_irconverter {
             anyHit,
             callableArgs,
             maxRecursiveDepth,
+            rayGenerationCompilationMode,
         )
     }
     #[doc = " Configure compiler compatibility flags.\n Compatibility flags allow you to tailor code generation to the specific requirements of your shaders.\n You typically enable compatibility flags to support a broader set of features and behaviors (such as out-of-bounds reads) when your shader needs them to operate correctly.\n These flags, however, carry a performance cost.\n Always use the minimum set of compatibility flags your shader needs to attain the highest runtime performance for IR code you compile.\n @param compiler the compiler to configure\n @param flags bitmask of compatibility flags to enable."]
@@ -2268,18 +2332,32 @@ impl metal_irconverter {
     ) {
         (self.IRRootSignatureGetResourceLocations)(rootSignature, resourceLocations)
     }
-    #[doc = " Serialize reflection information into JSON.\n @param reflection reflection object.\n @return null-terminated string containing JSON. You need to release this string by calling IRShaderReflectionFreeString."]
+    #[doc = " Serialize reflection information into JSON.\n @param reflection reflection object.\n @return null-terminated string containing JSON. You need to release this string by calling IRShaderReflectionFreeString.\n @deprecated use IRShaderReflectionCopyJSONString instead."]
     pub unsafe fn IRShaderReflectionAllocStringAndSerialize(
         &self,
         reflection: *mut IRShaderReflection,
     ) -> *const ::std::os::raw::c_char {
         (self.IRShaderReflectionAllocStringAndSerialize)(reflection)
     }
-    #[doc = " Release a string allocated by IRShaderReflectionAllocStringAndSerialize.\n @param serialized string to release."]
+    #[doc = " Serialize reflection information into JSON.\n @param reflection reflection object.\n @return null-terminated string containing JSON. You need to release this string by calling IRShaderReflectionFreeString."]
+    pub unsafe fn IRShaderReflectionCopyJSONString(
+        &self,
+        reflection: *const IRShaderReflection,
+    ) -> *const ::std::os::raw::c_char {
+        (self.IRShaderReflectionCopyJSONString)(reflection)
+    }
+    #[doc = " Release a string allocated by IRShaderReflectionAllocStringAndSerialize.\n @param serialized string to release.\n @deprecated use IRShaderReflectionReleaseString instead."]
     pub unsafe fn IRShaderReflectionFreeString(&self, serialized: *const ::std::os::raw::c_char) {
         (self.IRShaderReflectionFreeString)(serialized)
     }
-    #[doc = " Deserialize a JSON string into a reflection object.\n @param blob null-terminated JSON string containing reflection information.\n @param reflection reflection object into which to deserialize."]
+    #[doc = " Release a string allocated by IRShaderReflectionAllocStringAndSerialize.\n @param serialized string to release."]
+    pub unsafe fn IRShaderReflectionReleaseString(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+    ) {
+        (self.IRShaderReflectionReleaseString)(serialized)
+    }
+    #[doc = " Deserialize a JSON string into a reflection object.\n @param blob null-terminated JSON string containing reflection information.\n @param reflection reflection object into which to deserialize.\n @deprecated use IRShaderReflectionCreateFromJSON instead."]
     pub unsafe fn IRShaderReflectionDeserialize(
         &self,
         blob: *const ::std::os::raw::c_char,
@@ -2287,21 +2365,42 @@ impl metal_irconverter {
     ) {
         (self.IRShaderReflectionDeserialize)(blob, reflection)
     }
-    #[doc = " Serialize a root signature descriptor into a string representation.\n @param rootSignatureDescriptor root signature descriptor to serialize.\n @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString."]
+    #[doc = " Deserialize a JSON string into a reflection object.\n @param json null-terminated JSON string containing reflection information.\n @return a newly-allocated shader reflection object that you need to release by calling IRShaderReflectionDestroy,\n or NULL on error."]
+    pub unsafe fn IRShaderReflectionCreateFromJSON(
+        &self,
+        json: *const ::std::os::raw::c_char,
+    ) -> *mut IRShaderReflection {
+        (self.IRShaderReflectionCreateFromJSON)(json)
+    }
+    #[doc = " Serialize a root signature descriptor into a string representation.\n @param rootSignatureDescriptor root signature descriptor to serialize.\n @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString.\n @deprecated use IRVersionedRootSignatureDescriptorCopyJSONString instead."]
     pub unsafe fn IRVersionedRootSignatureDescriptorAllocStringAndSerialize(
         &self,
         rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
     ) -> *const ::std::os::raw::c_char {
         (self.IRVersionedRootSignatureDescriptorAllocStringAndSerialize)(rootSignatureDescriptor)
     }
-    #[doc = " Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.\n @param serialized string to release."]
+    #[doc = " Serialize a root signature descriptor into a string representation.\n @param rootSignatureDescriptor root signature descriptor to serialize.\n @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString."]
+    pub unsafe fn IRVersionedRootSignatureDescriptorCopyJSONString(
+        &self,
+        rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+    ) -> *const ::std::os::raw::c_char {
+        (self.IRVersionedRootSignatureDescriptorCopyJSONString)(rootSignatureDescriptor)
+    }
+    #[doc = " Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.\n @param serialized string to release.\n @deprecated use IRVersionedRootSignatureDescriptorReleaseString instead."]
     pub unsafe fn IRVersionedRootSignatureDescriptorFreeString(
         &self,
         serialized: *const ::std::os::raw::c_char,
     ) {
         (self.IRVersionedRootSignatureDescriptorFreeString)(serialized)
     }
-    #[doc = " Deserialize a string representation of a root signature into a root signature object.\n @param serialized a string representation of a root signature.\n @param rootSignatureDescriptor root signature object into which to deserialize the root signature.\n @return true if deserialization is successful, false otherwise."]
+    #[doc = " Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.\n @param serialized string to release."]
+    pub unsafe fn IRVersionedRootSignatureDescriptorReleaseString(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+    ) {
+        (self.IRVersionedRootSignatureDescriptorReleaseString)(serialized)
+    }
+    #[doc = " Deserialize a string representation of a root signature into a root signature object.\n @param serialized a string representation of a root signature.\n @param rootSignatureDescriptor root signature object into which to deserialize the root signature.\n @return true if deserialization is successful, false otherwise.\n @warning this function may allocate memory, call IRVersionedRootSignatureDescriptorReleaseArrays to deallocate any allocated memory.\n @deprecated use IRVersionedRootSignatureDescriptorCreateFromJSON instead."]
     pub unsafe fn IRVersionedRootSignatureDescriptorDeserialize(
         &self,
         serialized: *const ::std::os::raw::c_char,
@@ -2309,26 +2408,46 @@ impl metal_irconverter {
     ) -> bool {
         (self.IRVersionedRootSignatureDescriptorDeserialize)(serialized, rootSignatureDescriptor)
     }
+    #[doc = " Deserialize a string representation of a root signature into a root signature object.\n @param serialized a string representation of a root signature.\n @return a newly-allocated root signature object that you need to release, or NULL on error."]
+    pub unsafe fn IRVersionedRootSignatureDescriptorCreateFromJSON(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+    ) -> *mut IRVersionedRootSignatureDescriptor {
+        (self.IRVersionedRootSignatureDescriptorCreateFromJSON)(serialized)
+    }
+    #[doc = " Release any arrays allocated by IRVersionedRootSignatureDescriptorDeserialize.\n @param rootSignatureDescriptor root signature descriptor to release."]
+    pub unsafe fn IRVersionedRootSignatureDescriptorRelease(
+        &self,
+        rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+    ) {
+        (self.IRVersionedRootSignatureDescriptorRelease)(rootSignatureDescriptor)
+    }
     #[doc = " Serialize an input layout descriptor version 1 into a string.\n @param inputLayoutDescriptor descriptor to serialize.\n @return a string representation of the input layout descriptor. You need to release this string by calling IRInputLayoutDescriptor1FreeString."]
-    pub unsafe fn IRInputLayoutDescriptor1AllocStringAndSerialize(
+    pub unsafe fn IRInputLayoutDescriptor1CopyJSONString(
         &self,
         inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
     ) -> *const ::std::os::raw::c_char {
-        (self.IRInputLayoutDescriptor1AllocStringAndSerialize)(inputLayoutDescriptor)
+        (self.IRInputLayoutDescriptor1CopyJSONString)(inputLayoutDescriptor)
     }
-    #[doc = " Release a string allocated by IRInputLayoutDescriptor1AllocStringAndSerialize.\n @param serialized string to release."]
-    pub unsafe fn IRInputLayoutDescriptor1FreeString(
+    #[doc = " Release a string allocated by IRInputLayoutDescriptor1CopyJSONString.\n @param serialized string to release."]
+    pub unsafe fn IRInputLayoutDescriptor1ReleaseString(
         &self,
         serialized: *const ::std::os::raw::c_char,
     ) {
-        (self.IRInputLayoutDescriptor1FreeString)(serialized)
+        (self.IRInputLayoutDescriptor1ReleaseString)(serialized)
     }
-    #[doc = " Deserialize a string representation of an input layout descriptor version 1 into an IRInputLayoutDescriptor1 structure.\n @param serialized a string representation of an input layout descriptor version 1.\n @param inputLayoutDescriptor input layout descriptor version 1 object into which to deserialized the input layout descriptor.\n @return true if deserialization is successful, false otherwise."]
-    pub unsafe fn IRInputLayoutDescriptor1Deserialize(
+    #[doc = " Deserialize a string representation of an input layout descriptor version 1 into an IRInputLayoutDescriptor1 structure.\n @param serialized a string representation of an input layout descriptor version 1.\n @return a newly-allocated input layout descriptor version 1 object that you need to release by calling IRInputLayoutDescriptor1Release,\n NULL if an error occurs."]
+    pub unsafe fn IRInputLayoutDescriptor1CreateFromJSON(
         &self,
         serialized: *const ::std::os::raw::c_char,
+    ) -> *mut IRInputLayoutDescriptor1 {
+        (self.IRInputLayoutDescriptor1CreateFromJSON)(serialized)
+    }
+    #[doc = " Release an IRInputDescriptor1 instance allocated by IRInputLayoutDescriptor1CreateFromJSON.\n @param inputLayoutDescriptor input layout descriptor to release."]
+    pub unsafe fn IRInputLayoutDescriptor1Release(
+        &self,
         inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
-    ) -> bool {
-        (self.IRInputLayoutDescriptor1Deserialize)(serialized, inputLayoutDescriptor)
+    ) {
+        (self.IRInputLayoutDescriptor1Release)(inputLayoutDescriptor)
     }
 }
