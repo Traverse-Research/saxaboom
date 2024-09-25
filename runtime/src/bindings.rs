@@ -80,13 +80,13 @@ where
         }
     }
 }
+pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct MTLDispatchThreadgroupsIndirectArguments {
     pub threadgroupsPerGrid: [u32; 3usize],
 }
 pub type resourceid_t = MTLResourceID;
-pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRDescriptorTableEntry {
