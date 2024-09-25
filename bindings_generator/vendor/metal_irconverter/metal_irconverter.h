@@ -25,7 +25,7 @@
 #import <dispatch/dispatch.h>
 #endif // __APPLE__
 
-#if _MSC_VER
+#ifdef _MSC_VER
 #define IR_DEPRECATED(message) __declspec(deprecated(message))
 #else
 #define IR_DEPRECATED(message) __attribute__((deprecated(message)))
@@ -187,14 +187,15 @@ typedef enum IRStaticBorderColor
 
 typedef enum IRCompatibilityFlags
 {
-    IRCompatibilityFlagNone                   = 0,
-    IRCompatibilityFlagBoundsCheck            = (1 << 0),
-    IRCompatibilityFlagVertexPositionInfToNan = (1 << 1),
-    IRCompatibilityFlagTextureMinLODClamp     = (1 << 2),
-    IRCompatibilityFlagSamplerLODBias         = (1 << 3),
-    IRCompatibilityFlagPositionInvariance     = (1 << 4),
-    IRCompatibilityFlagSampleNanToZero        = (1 << 5),
-    IRCompatibilityFlagTexWriteRoundingRTZ    = (1 << 6),
+    IRCompatibilityFlagNone                              = 0,
+    IRCompatibilityFlagBoundsCheck                       = (1 << 0),
+    IRCompatibilityFlagVertexPositionInfToNan            = (1 << 1),
+    IRCompatibilityFlagTextureMinLODClamp                = (1 << 2),
+    IRCompatibilityFlagSamplerLODBias                    = (1 << 3),
+    IRCompatibilityFlagPositionInvariance                = (1 << 4),
+    IRCompatibilityFlagSampleNanToZero                   = (1 << 5),
+    IRCompatibilityFlagTexWriteRoundingRTZ               = (1 << 6),
+    IRCompatibilityFlagSuppress2DComputeDerivativeErrors = (1 << 7)
 } IRCompatibilityFlags;
 
 typedef struct IRStaticSamplerDescriptor
