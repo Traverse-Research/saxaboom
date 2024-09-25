@@ -2,7 +2,7 @@
 
 pub const IR_VERSION_MAJOR: u32 = 2;
 pub const IR_VERSION_MINOR: u32 = 0;
-pub const IR_VERSION_PATCH: u32 = 3;
+pub const IR_VERSION_PATCH: u32 = 4;
 pub const IRDescriptorRangeOffsetAppend: u32 = 4294967295;
 pub const IRIntrinsicMaskClosestHitAll: u32 = 2147483647;
 pub const IRIntrinsicMaskMissShaderAll: u32 = 32767;
@@ -635,6 +635,9 @@ impl IRCompatibilityFlags {
 }
 impl IRCompatibilityFlags {
     pub const TexWriteRoundingRTZ: IRCompatibilityFlags = IRCompatibilityFlags(64);
+}
+impl IRCompatibilityFlags {
+    pub const Suppress2DComputeDerivativeErrors: IRCompatibilityFlags = IRCompatibilityFlags(128);
 }
 impl ::std::ops::BitOr<IRCompatibilityFlags> for IRCompatibilityFlags {
     type Output = Self;
