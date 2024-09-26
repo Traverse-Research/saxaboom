@@ -475,6 +475,16 @@ pub const kIRIndirectTriangleIntersectionFunctionName: &[u8; 51] =
     b"irconverter.wrapper.intersection.function.triangle\0";
 pub const kIRIndirectProceduralIntersectionFunctionName: &[u8; 53] =
     b"irconverter.wrapper.intersection.function.procedural\0";
+pub const kIRTrianglePassthroughGeometryShader: &[u8; 47] =
+    b"irconverter_domain_shader_triangle_passthrough\0";
+pub const kIRLinePassthroughGeometryShader: &[u8; 43] =
+    b"irconverter_domain_shader_line_passthrough\0";
+pub const kIRPointPassthroughGeometryShader: &[u8; 44] =
+    b"irconverter_domain_shader_point_passthrough\0";
+pub const kIRNonIndexedDraw: u16 = 0;
+pub const kIRFunctionGroupRayGeneration: &[u8; 7] = b"rayGen\0";
+pub const kIRFunctionGroupClosestHit: &[u8; 11] = b"closestHit\0";
+pub const kIRFunctionGroupMiss: &[u8; 5] = b"miss\0";
 pub const kIRBufSizeOffset: u64 = 0;
 pub const kIRBufSizeMask: u64 = 4294967295;
 pub const kIRTexViewOffset: u64 = 32;

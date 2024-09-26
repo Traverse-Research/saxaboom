@@ -101,6 +101,11 @@ impl ParseCallbacks for RenameCallback {
                 enum_name = String::from("IRRuntimeTessellatorOutput");
             }
 
+            // For this specific enum, strip off the `Mode` suffix
+            if enum_name == "IRRayGenerationCompilationMode" {
+                enum_name = String::from("IRRayGenerationCompilation");
+            }
+
             let new_name = original_variant_name
                 .strip_prefix(&enum_name)
                 .unwrap_or(original_variant_name);

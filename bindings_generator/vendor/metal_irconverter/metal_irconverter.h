@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
-// Copyright 2023 Apple Inc.
+// Copyright 2023-2024 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,12 @@
 #ifdef __APPLE__
 #import <dispatch/dispatch.h>
 #endif // __APPLE__
+
+#ifdef _MSC_VER
+#define IR_DEPRECATED(message) __declspec(deprecated(message))
+#else
+#define IR_DEPRECATED(message) __attribute__((deprecated(message)))
+#endif // _MSC_VER
 
 #ifdef __cplusplus
 extern "C" {
@@ -128,7 +134,7 @@ typedef struct IRVertexInputTable
 {
     uint32_t NumDescriptorRanges;
     const IRDescriptorRange* pDescriptorRanges;
-} IRVertexInput;
+} IRVertexInputTable;
 
 typedef struct IRRootConstants
 {
@@ -181,14 +187,15 @@ typedef enum IRStaticBorderColor
 
 typedef enum IRCompatibilityFlags
 {
-    IRCompatibilityFlagNone                   = 0,
-    IRCompatibilityFlagBoundsCheck            = (1 << 0),
-    IRCompatibilityFlagVertexPositionInfToNan = (1 << 1),
-    IRCompatibilityFlagTextureMinLODClamp     = (1 << 2),
-    IRCompatibilityFlagSamplerLODBias         = (1 << 3),
-    IRCompatibilityFlagPositionInvariance     = (1 << 4),
-    IRCompatibilityFlagSampleNanToZero        = (1 << 5),
-    
+    IRCompatibilityFlagNone                              = 0,
+    IRCompatibilityFlagBoundsCheck                       = (1 << 0),
+    IRCompatibilityFlagVertexPositionInfToNan            = (1 << 1),
+    IRCompatibilityFlagTextureMinLODClamp                = (1 << 2),
+    IRCompatibilityFlagSamplerLODBias                    = (1 << 3),
+    IRCompatibilityFlagPositionInvariance                = (1 << 4),
+    IRCompatibilityFlagSampleNanToZero                   = (1 << 5),
+    IRCompatibilityFlagTexWriteRoundingRTZ               = (1 << 6),
+    IRCompatibilityFlagSuppress2DComputeDerivativeErrors = (1 << 7)
 } IRCompatibilityFlags;
 
 typedef struct IRStaticSamplerDescriptor
@@ -284,8 +291,8 @@ typedef struct IRInputElementDescriptor1
     IRFormat                    format;
     uint32_t                    inputSlot;
     uint32_t                    alignedByteOffset;
-    IRInputClassification       inputSlotClass;
     uint32_t                    instanceDataStepRate;
+    IRInputClassification       inputSlotClass;
 } IRInputElementDescriptor1;
 
 
@@ -325,6 +332,12 @@ typedef enum IRRaytracingPipelineFlags
     IRRaytracingPipelineFlagSkipProceduralPrimitives = 0x200
 } IRRaytracingPipelineFlags;
 
+typedef enum IRRayGenerationCompilationMode
+{
+    IRRayGenerationCompilationKernel,
+    IRRayGenerationCompilationVisibleFunction
+} IRRayGenerationCompilationMode;
+
 enum IRErrorCode
 {
     IRErrorCodeNoError,
@@ -343,6 +356,7 @@ enum IRErrorCode
     IRErrorCodeUnableToLinkModule,
     IRErrorCodeUnrecognizedDXILHeader,
     IRErrorCodeInvalidRaytracingAttribute,
+    IRErrorCodeNullHullShaderInputOutputMismatch,
     IRErrorCodeUnknown
 };
 
@@ -454,7 +468,7 @@ void IRCompilerDestroy(IRCompiler* compiler);
  * @param entryPointName optional entry point name to compile when converting a library with multiple entry points.
  * @param input input IR object.
  * @param error on return, if the compiler generates any errors, this optional out parameter contains error information. If an error occurs and this parameter is non-NULL, you must free it by calling IRErrorDestroy.
- * @return an IR Object containing MetalIR compiled from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
+ * @return an IR Object containing MetalIR compiled and linked from the input IR, or NULL if an error occurs. You must destroy this object by calling IRObjectDestroy.
  */
 IRObject* IRCompilerAllocCompileAndLink(IRCompiler* compiler, const char* entryPointName, const IRObject* input, IRError** error);
 
@@ -546,7 +560,7 @@ void IRCompilerSetHitgroupType(IRCompiler* compiler, IRHitGroupType hitGroupType
 
 #define IRIntrinsicMaskClosestHitAll         0x7FFFFFFF
 #define IRIntrinsicMaskMissShaderAll         0x7FFF
-#define IRIntrinsicMaskCallableShaderAll     0x7FFF
+#define IRIntrinsicMaskCallableShaderAll     0x703F
 #define IRIntrinsicMaskAnyHitShaderAll       ((uint64_t)-1)
 #define IRRayTracingUnlimitedRecursionDepth  (-1)
 
@@ -570,9 +584,10 @@ uint64_t IRObjectGatherRaytracingIntrinsics(IRObject* input, const char* entryPo
  * @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`).
  * @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`).
  * @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.
+ * @param rayGenerationCompilationMode set the ray-generation shader compilation mode to compile either as a compute kernel, or as a visible function for a shader binding table.
  * @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail.
  */
-void IRCompilerSetRayTracingPipelineArguments(IRCompiler* compiler, uint32_t maxAttributeSizeInBytes, IRRaytracingPipelineFlags raytracingPipelineFlags, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs, int maxRecursiveDepth);
+void IRCompilerSetRayTracingPipelineArguments(IRCompiler* compiler, uint32_t maxAttributeSizeInBytes, IRRaytracingPipelineFlags raytracingPipelineFlags, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs, int maxRecursiveDepth, IRRayGenerationCompilationMode rayGenerationCompilationMode);
 
 /**
  * Configure compiler compatibility flags.
@@ -695,6 +710,13 @@ void IRCompilerSetMinimumGPUFamily(IRCompiler* compiler, IRGPUFamily family);
  */
 void IRCompilerIgnoreRootSignature(IRCompiler* compiler, bool ignoreEmbeddedRootSignature);
 
+/**
+ * Set compiler settings to ignore debug information.
+ * @param compiler compiler for which to set the flags.
+ * @param ignoreDebugInformation whether dxil debug information should be ignored. Defaults to false.
+ */
+void IRCompilerIgnoreDebugInformation(IRCompiler* compiler, bool ignoreDebugInformation);
+
 typedef enum IROperatingSystem
 {
     IROperatingSystem_macOS,
@@ -752,7 +774,7 @@ dispatch_data_t IRMetalLibGetBytecodeData(const IRMetalLibBinary* lib);
 #endif // __APPLE__
 
 /**
- * Serialize an MetalIR object's shader bytecode to disk.
+ * Serialize a MetalIR object's shader bytecode to disk.
  * @param outputPath path into which to write the serialized MetalIR.
  * @param obj IRObject containing the bytecode to serialize.
  * @param stage shader stage to serialize.
@@ -1226,42 +1248,129 @@ void IRRootSignatureGetResourceLocations(const IRRootSignature* rootSignature, I
  * Serialize reflection information into JSON.
  * @param reflection reflection object.
  * @return null-terminated string containing JSON. You need to release this string by calling IRShaderReflectionFreeString.
+ * @deprecated use IRShaderReflectionCopyJSONString instead.
  */
+IR_DEPRECATED("use IRShaderReflectionCopyJSONString instead.")
 const char* IRShaderReflectionAllocStringAndSerialize(IRShaderReflection* reflection);
+
+/**
+ * Serialize reflection information into JSON.
+ * @param reflection reflection object.
+ * @return null-terminated string containing JSON. You need to release this string by calling IRShaderReflectionFreeString.
+ */
+const char* IRShaderReflectionCopyJSONString(const IRShaderReflection* reflection);
+
+/**
+ * Release a string allocated by IRShaderReflectionAllocStringAndSerialize.
+ * @param serialized string to release.
+ * @deprecated use IRShaderReflectionReleaseString instead.
+ */
+IR_DEPRECATED("use IRShaderReflectionReleaseString instead.")
+void IRShaderReflectionFreeString(const char* serialized);
 
 /**
  * Release a string allocated by IRShaderReflectionAllocStringAndSerialize.
  * @param serialized string to release.
  */
-void IRShaderReflectionFreeString(const char* serialized);
+void IRShaderReflectionReleaseString(const char* serialized);
 
 /**
  * Deserialize a JSON string into a reflection object.
  * @param blob null-terminated JSON string containing reflection information.
  * @param reflection reflection object into which to deserialize.
+ * @deprecated use IRShaderReflectionCreateFromJSON instead.
  */
+IR_DEPRECATED("use IRShaderReflectionCreateFromJSON instead.")
 void IRShaderReflectionDeserialize(const char* blob, IRShaderReflection* reflection);
+
+/**
+ * Deserialize a JSON string into a reflection object.
+ * @param json null-terminated JSON string containing reflection information.
+ * @return a newly-allocated shader reflection object that you need to release by calling IRShaderReflectionDestroy,
+ * or NULL on error.
+ */
+IRShaderReflection* IRShaderReflectionCreateFromJSON(const char* json);
+
+/**
+ * Serialize a root signature descriptor into a string representation.
+ * @param rootSignatureDescriptor root signature descriptor to serialize.
+ * @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString.
+ * @deprecated use IRVersionedRootSignatureDescriptorCopyJSONString instead.
+ */
+IR_DEPRECATED("use IRVersionedRootSignatureDescriptorCopyJSONString instead.")
+const char* IRVersionedRootSignatureDescriptorAllocStringAndSerialize(IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
 
 /**
  * Serialize a root signature descriptor into a string representation.
  * @param rootSignatureDescriptor root signature descriptor to serialize.
  * @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString.
  */
-const char* IRVersionedRootSignatureDescriptorAllocStringAndSerialize(IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+const char* IRVersionedRootSignatureDescriptorCopyJSONString(IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+
+/**
+ * Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.
+ * @param serialized string to release.
+ * @deprecated use IRVersionedRootSignatureDescriptorReleaseString instead.
+ */
+IR_DEPRECATED("use IRVersionedRootSignatureDescriptorReleaseString instead.")
+void IRVersionedRootSignatureDescriptorFreeString(const char* serialized);
 
 /**
  * Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.
  * @param serialized string to release.
  */
-void IRVersionedRootSignatureDescriptorFreeString(const char* serialized);
+void IRVersionedRootSignatureDescriptorReleaseString(const char* serialized);
 
 /**
- * Deserialized a string representation of a root signature into a root signature object.
+ * Deserialize a string representation of a root signature into a root signature object.
  * @param serialized a string representation of a root signature.
  * @param rootSignatureDescriptor root signature object into which to deserialize the root signature.
  * @return true if deserialization is successful, false otherwise.
+ * @warning this function may allocate memory, call IRVersionedRootSignatureDescriptorReleaseArrays to deallocate any allocated memory.
+ * @deprecated use IRVersionedRootSignatureDescriptorCreateFromJSON instead.
  */
+IR_DEPRECATED("use IRVersionedRootSignatureDescriptorCreateFromJSON instead.")
 bool IRVersionedRootSignatureDescriptorDeserialize(const char* serialized, IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+
+/**
+ * Deserialize a string representation of a root signature into a root signature object.
+ * @param serialized a string representation of a root signature.
+ * @return a newly-allocated root signature object that you need to release, or NULL on error.
+ */
+IRVersionedRootSignatureDescriptor* IRVersionedRootSignatureDescriptorCreateFromJSON(const char* serialized);
+
+/**
+ * Release any arrays allocated by IRVersionedRootSignatureDescriptorDeserialize.
+ * @param rootSignatureDescriptor root signature descriptor to release.
+ */
+void IRVersionedRootSignatureDescriptorRelease(IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+
+/**
+ * Serialize an input layout descriptor version 1 into a string.
+ * @param inputLayoutDescriptor descriptor to serialize.
+ * @return a string representation of the input layout descriptor. You need to release this string by calling IRInputLayoutDescriptor1FreeString.
+ */
+const char* IRInputLayoutDescriptor1CopyJSONString(IRInputLayoutDescriptor1* inputLayoutDescriptor);
+
+/**
+ * Release a string allocated by IRInputLayoutDescriptor1CopyJSONString.
+ * @param serialized string to release.
+ */
+void IRInputLayoutDescriptor1ReleaseString(const char* serialized);
+
+/**
+ * Deserialize a string representation of an input layout descriptor version 1 into an IRInputLayoutDescriptor1 structure.
+ * @param serialized a string representation of an input layout descriptor version 1.
+ * @return a newly-allocated input layout descriptor version 1 object that you need to release by calling IRInputLayoutDescriptor1Release,
+ * NULL if an error occurs.
+ */
+IRInputLayoutDescriptor1* IRInputLayoutDescriptor1CreateFromJSON(const char* serialized);
+
+/**
+ * Release an IRInputDescriptor1 instance allocated by IRInputLayoutDescriptor1CreateFromJSON.
+ * @param inputLayoutDescriptor input layout descriptor to release.
+ */
+void IRInputLayoutDescriptor1Release(IRInputLayoutDescriptor1* inputLayoutDescriptor);
 
 #ifdef __cplusplus
 }

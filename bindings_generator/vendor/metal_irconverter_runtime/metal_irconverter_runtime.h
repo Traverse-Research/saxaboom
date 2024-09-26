@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
-// Copyright 2023 Apple Inc.
+// Copyright 2023-2024 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -240,7 +240,7 @@ typedef struct IRRuntimeDrawParams
 typedef struct IRRuntimeDrawInfo
 {
     // Vertex pipelines only require the index type.
-    uint16_t indexType;
+    uint16_t indexType; // set to kIRNonIndexedDraw to indicate a non-indexed draw call
     
     // Required by all mesh shader-based pipelines.
     uint8_t primitiveTopology;
@@ -278,16 +278,17 @@ void IRRuntimeCreateAppendBufferView(device_t device,
 
 /**
  * Obtain the count of an append/consume buffer.
+ * @note the backing MTLBuffer needs to have MTLStorageModeShared storage mode.
  * @param bufferView buffer view representing the append/consume buffer for which to retrieve the counter.
  * @return the current count of the append/consume buffer. This function doesn't cause a GPU-CPU sync.
  */
-uint32_t IRRuntimeGetAppendBufferCount(IRBufferView* bufferView);
+uint32_t IRRuntimeGetAppendBufferCount(const IRBufferView* bufferView);
 
 /**
- * Produce metadata from a buffer view description.
+ * Obtain encoded metadata from a buffer view description.
  * @param view the view description to encode into the produced metadata.
 **/
-uint64_t IRDescriptorTableGetBufferMetadata(IRBufferView* view);
+uint64_t IRDescriptorTableGetBufferMetadata(const IRBufferView* view);
 
 /**
  * Encode a buffer into the argument buffer.
@@ -303,7 +304,7 @@ void IRDescriptorTableSetBuffer(IRDescriptorTableEntry* entry, uint64_t gpu_va, 
  * @param entry the pointer to the descriptor table entry to encode the buffer reference into.
  * @param bufferView the buffer view description.
 **/
-void IRDescriptorTableSetBufferView(IRDescriptorTableEntry* entry, IRBufferView* bufferView);
+void IRDescriptorTableSetBufferView(IRDescriptorTableEntry* entry, const IRBufferView* bufferView);
 
 /**
  * Encode a texture into the argument buffer.
@@ -411,6 +412,7 @@ void IRRuntimeDrawIndexedPrimitives(renderencoder_t enc, primitivetype_t primiti
 void IRRuntimeDrawIndexedPrimitives(renderencoder_t enc, primitivetype_t primitiveType, indextype_t indexType, buffer_t indexBuffer, uint64_t indexBufferOffset, buffer_t indirectBuffer, uint64_t indirectBufferOffset ) IR_OVERLOADABLE;
 
 /**
+ * Draw indexed primitives using an emulated geometry pipeline.
  * You need to bind your vertex arrays and strides before issuing this call.
  * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
  * You need to manually flag residency for all referenced vertex buffers and for the index buffer.
@@ -427,6 +429,21 @@ void IRRuntimeDrawIndexedPrimitivesGeometryEmulation(renderencoder_t enc,
                                                      uint32_t baseInstance);
 
 /**
+ * Draw non-indexed primitives using an emulated geometry pipeline.
+ * You need to bind your vertex arrays and strides before issuing this call.
+ * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
+ * You need to manually flag residency for all referenced vertex buffers.
+ */
+void IRRuntimeDrawPrimitivesGeometryEmulation(renderencoder_t enc,
+                                              IRRuntimePrimitiveType primitiveType,
+                                              IRRuntimeGeometryPipelineConfig geometryPipelineConfig,
+                                              uint32_t instanceCount,
+                                              uint32_t vertexCountPerInstance,
+                                              uint32_t baseVertex,
+                                              uint32_t baseInstance);
+
+/**
+ * * Draw indexed primitives using an emulated geometry/tessellation pipeline.
  * You need to bind your vertex arrays and strides before issuing this call.
  * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
  * You need to manually flag residency for all referenced vertex buffers and for the index buffer.
@@ -441,6 +458,20 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
                                                       uint32_t baseInstance,
                                                       int32_t  baseVertex,
                                                       uint32_t startIndex);
+
+/**
+ * Draw non-indexed primitives using an emulated geometry/tessellation pipeline.
+ * You need to bind your vertex arrays and strides before issuing this call.
+ * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
+ * You need to manually flag residency for all referenced vertex buffers.
+ */
+void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
+                                               IRRuntimePrimitiveType primitiveTopology,
+                                               IRRuntimeTessellationPipelineConfig tessellationPipelineConfig,
+                                               uint32_t instanceCount,
+                                               uint32_t vertexCountPerInstance,
+                                               uint32_t baseInstance,
+                                               uint32_t baseVertex);
 
 /**
  * Validate that the hull domain and tessellation stages are compatible from their reflection data.
@@ -476,6 +507,9 @@ renderpipelinestate_t IRRuntimeNewGeometryEmulationPipeline(device_t device,
 
 /**
  * Create a new mesh pipeline suitable for emulating a render pipeline with a hull stage, a domain stage, and a geometry stage.
+ * @note You may optionally not provide a geometry shader as part of your tessellation pipeline by setting the decriptor parameter's
+ * geometryLibrary member to NULL, and providing a geometryFunctionName of kIRTrianglePassthroughGeometryShader, kIRLinePassthroughGeometryShader,
+ * or kIRPointPassthroughGeometryShader, depending on the primitive topology of draw calls that use the pipeline.
  * @param device the device to use for creating the new pipeline.
  * @param descriptor an object describing the origin libraries and function names to create the pipeline.
  * @param error an output error object containing details about any error encountered during the creation process.
@@ -485,23 +519,33 @@ renderpipelinestate_t IRRuntimeNewGeometryTessellationEmulationPipeline(device_t
                                                                         const IRGeometryTessellationEmulationPipelineDescriptor* descriptor,
                                                                         nserror_t* error) API_AVAILABLE(macosx(14), ios(17));
 
-static const uint64_t kIRArgumentBufferBindPoint                   = 2;
-static const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
-static const uint64_t kIRDescriptorHeapBindPoint                   = 0;
-static const uint64_t kIRSamplerHeapBindPoint                      = 1;
-static const uint64_t kIRArgumentBufferDrawArgumentsBindPoint      = 4;
-static const uint64_t kIRArgumentBufferUniformsBindPoint           = 5;
-static const uint64_t kIRVertexBufferBindPoint                     = 6;
-static const uint64_t kIRStageInAttributeStartIndex                = 11;
-static const char* kIRIndirectTriangleIntersectionFunctionName     = "irconverter.wrapper.intersection.function.triangle";
-static const char* kIRIndirectProceduralIntersectionFunctionName   = "irconverter.wrapper.intersection.function.procedural";
+const uint64_t kIRArgumentBufferBindPoint                   = 2;
+const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
+const uint64_t kIRDescriptorHeapBindPoint                   = 0;
+const uint64_t kIRSamplerHeapBindPoint                      = 1;
+const uint64_t kIRArgumentBufferDrawArgumentsBindPoint      = 4;
+const uint64_t kIRArgumentBufferUniformsBindPoint           = 5;
+const uint64_t kIRVertexBufferBindPoint                     = 6;
+const uint64_t kIRStageInAttributeStartIndex                = 11;
 
+const char* kIRIndirectTriangleIntersectionFunctionName     = "irconverter.wrapper.intersection.function.triangle";
+const char* kIRIndirectProceduralIntersectionFunctionName   = "irconverter.wrapper.intersection.function.procedural";
 
-static const uint64_t kIRBufSizeOffset     = 0;
-static const uint64_t kIRBufSizeMask       = 0xffffffff;
-static const uint64_t kIRTexViewOffset     = 32;
-static const uint64_t kIRTexViewMask       = 0xff;
-static const uint64_t kIRTypedBufferOffset = 63;
+const char*    kIRTrianglePassthroughGeometryShader         = "irconverter_domain_shader_triangle_passthrough";
+const char*    kIRLinePassthroughGeometryShader             = "irconverter_domain_shader_line_passthrough";
+const char*    kIRPointPassthroughGeometryShader            = "irconverter_domain_shader_point_passthrough";
+
+const uint16_t kIRNonIndexedDraw                            = 0;
+
+const char*    kIRFunctionGroupRayGeneration                = "rayGen";
+const char*    kIRFunctionGroupClosestHit                   = "closestHit";
+const char*    kIRFunctionGroupMiss                         = "miss";
+
+const uint64_t kIRBufSizeOffset     = 0;
+const uint64_t kIRBufSizeMask       = 0xffffffff;
+const uint64_t kIRTexViewOffset     = 32;
+const uint64_t kIRTexViewMask       = 0xff;
+const uint64_t kIRTypedBufferOffset = 63;
 
 
 #ifdef IR_PRIVATE_IMPLEMENTATION
@@ -573,7 +617,7 @@ void IRRuntimeCreateAppendBufferView(device_t device, buffer_t appendBuffer, uin
 }
 
 IR_INLINE
-uint32_t IRRuntimeGetAppendBufferCount(IRBufferView* bufferView)
+uint32_t IRRuntimeGetAppendBufferCount(const IRBufferView* bufferView)
 {
     uint64_t bufferOffset = bufferView->textureViewOffsetInElements * 4;
 #ifdef IR_RUNTIME_METALCPP
@@ -586,7 +630,7 @@ uint32_t IRRuntimeGetAppendBufferCount(IRBufferView* bufferView)
 
 
 IR_INLINE
-uint64_t IRDescriptorTableGetBufferMetadata(IRBufferView* view)
+uint64_t IRDescriptorTableGetBufferMetadata(const IRBufferView* view)
 {
     uint64_t md = (view->bufferSize & kIRBufSizeMask) << kIRBufSizeOffset;
     
@@ -606,7 +650,7 @@ void IRDescriptorTableSetBuffer(IRDescriptorTableEntry* entry, uint64_t gpu_va, 
 }
 
 IR_INLINE
-void IRDescriptorTableSetBufferView(IRDescriptorTableEntry* entry, IRBufferView* bufferView)
+void IRDescriptorTableSetBufferView(IRDescriptorTableEntry* entry, const IRBufferView* bufferView)
 {
     #ifdef IR_RUNTIME_METALCPP
     entry->gpuVA = bufferView->buffer->gpuAddress() + bufferView->bufferOffset;
@@ -646,20 +690,25 @@ void IRDescriptorTableSetSampler(IRDescriptorTableEntry* entry, sampler_t argume
     entry->metadata = encodedLodBias;
 }
 
+static IR_INLINE
+uint16_t IRMetalIndexToIRIndex(indextype_t indexType)
+{
+    return (uint16_t)(indexType+1);
+}
+
 IR_INLINE
 void IRRuntimeDrawPrimitives(renderencoder_t enc, primitivetype_t primitiveType, uint64_t vertexStart, uint64_t vertexCount, uint64_t instanceCount, uint64_t baseInstance) IR_OVERLOADABLE
 {
     IRRuntimeDrawArgument da = { (uint32_t)vertexCount, (uint32_t)instanceCount, (uint32_t)vertexStart, (uint32_t)baseInstance };
     IRRuntimeDrawParams dp = { .draw = da };
-    IRRuntimeDrawInfo di = { 0, (uint8_t)primitiveType, 0, 0, 0 };
 
     #ifdef IR_RUNTIME_METALCPP
     enc->setVertexBytes( &dp, sizeof( IRRuntimeDrawParams ), kIRArgumentBufferDrawArgumentsBindPoint );
-    enc->setVertexBytes( &di, sizeof( IRRuntimeDrawInfo ), kIRArgumentBufferUniformsBindPoint );
+    enc->setVertexBytes( &kIRNonIndexedDraw, sizeof( uint16_t ), kIRArgumentBufferUniformsBindPoint );
     enc->drawPrimitives( primitiveType, vertexStart, vertexCount, instanceCount, baseInstance );
     #else
     [enc setVertexBytes:&dp length:sizeof( IRRuntimeDrawParams ) atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
-    [enc setVertexBytes:&di length:sizeof( IRRuntimeDrawInfo ) atIndex:kIRArgumentBufferUniformsBindPoint];
+    [enc setVertexBytes:&kIRNonIndexedDraw length:sizeof( uint16_t ) atIndex:kIRArgumentBufferUniformsBindPoint];
     [enc drawPrimitives:primitiveType vertexStart:vertexStart vertexCount:vertexCount instanceCount:instanceCount baseInstance:baseInstance];
     #endif
 }
@@ -681,9 +730,11 @@ void IRRuntimeDrawPrimitives(renderencoder_t enc, primitivetype_t primitiveType,
 {
     #ifdef IR_RUNTIME_METALCPP
     enc->setVertexBuffer( indirectBuffer, indirectBufferOffset, kIRArgumentBufferDrawArgumentsBindPoint );
+    enc->setVertexBytes( &kIRNonIndexedDraw, sizeof( uint16_t ), kIRArgumentBufferUniformsBindPoint );
     enc->drawPrimitives( primitiveType, indirectBuffer, indirectBufferOffset );
     #else
     [enc setVertexBuffer:indirectBuffer offset:indirectBufferOffset atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+    [enc setVertexBytes:&kIRNonIndexedDraw length:sizeof( uint16_t ) atIndex:kIRArgumentBufferUniformsBindPoint];
     [enc drawPrimitives:primitiveType indirectBuffer:indirectBuffer indirectBufferOffset:indirectBufferOffset];
     #endif
 }
@@ -700,15 +751,15 @@ void IRRuntimeDrawIndexedPrimitives(renderencoder_t enc, primitivetype_t primiti
     };
 
     IRRuntimeDrawParams dp = { .drawIndexed = da };
-    IRRuntimeDrawInfo di = { .indexType = (uint8_t)(indexType+1), .primitiveTopology = (uint8_t)primitiveType };
+    const uint16_t IRIndexType = IRMetalIndexToIRIndex(indexType);
 
     #ifdef IR_RUNTIME_METALCPP
     enc->setVertexBytes( &dp, sizeof( IRRuntimeDrawParams ), kIRArgumentBufferDrawArgumentsBindPoint );
-    enc->setVertexBytes( &di, sizeof( IRRuntimeDrawInfo ), kIRArgumentBufferUniformsBindPoint );
+    enc->setVertexBytes( &IRIndexType, sizeof( uint16_t ), kIRArgumentBufferUniformsBindPoint );
     enc->drawIndexedPrimitives( primitiveType, indexCount, indexType, indexBuffer, indexBufferOffset, instanceCount, baseVertex, baseInstance );
     #else
     [enc setVertexBytes:&dp length:sizeof( IRRuntimeDrawParams ) atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
-    [enc setVertexBytes:&di length:sizeof( IRRuntimeDrawInfo ) atIndex:kIRArgumentBufferUniformsBindPoint];
+    [enc setVertexBytes:&IRIndexType length:sizeof( uint16_t ) atIndex:kIRArgumentBufferUniformsBindPoint];
     [enc drawIndexedPrimitives:primitiveType indexCount:indexCount indexType:indexType indexBuffer:indexBuffer indexBufferOffset:indexBufferOffset instanceCount:instanceCount baseVertex:baseVertex baseInstance:baseInstance];
     #endif
 }
@@ -728,11 +779,15 @@ void IRRuntimeDrawIndexedPrimitives(renderencoder_t enc, primitivetype_t primiti
 IR_INLINE
 void IRRuntimeDrawIndexedPrimitives(renderencoder_t enc, primitivetype_t primitiveType, indextype_t indexType, buffer_t indexBuffer, uint64_t indexBufferOffset, buffer_t indirectBuffer, uint64_t indirectBufferOffset ) IR_OVERLOADABLE
 {
+    const uint16_t IRIndexType = IRMetalIndexToIRIndex(indexType);
+
     #ifdef IR_RUNTIME_METALCPP
     enc->setVertexBuffer( indirectBuffer, indirectBufferOffset, kIRArgumentBufferDrawArgumentsBindPoint );
+    enc->setVertexBytes( &IRIndexType, sizeof( uint16_t ), kIRArgumentBufferUniformsBindPoint );
     enc->drawIndexedPrimitives( primitiveType, indexType, indexBuffer, indexBufferOffset, indirectBuffer, indirectBufferOffset );
     #else
     [enc setVertexBuffer:indirectBuffer offset:indirectBufferOffset atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+    [enc setVertexBytes:&IRIndexType length:sizeof( uint16_t ) atIndex:kIRArgumentBufferUniformsBindPoint];
     [enc drawIndexedPrimitives:primitiveType indexType:indexType indexBuffer:indexBuffer indexBufferOffset:indexBufferOffset indirectBuffer:indirectBuffer indirectBufferOffset:indirectBufferOffset];
     #endif
 }
@@ -766,23 +821,6 @@ static uint32_t IRRuntimePrimitiveTypeVertexOverlap(IRRuntimePrimitiveType primi
         case IRRuntimePrimitiveTypeLineWithAdj:     return 0; break;
         case IRRuntimePrimitiveTypeTriangleStrip:   return 2; break;
         case IRRuntimePrimitiveTypeLineStrip:       return 1; break;
-        default: return 0;
-    }
-    return 0;
-}
-
-IR_INLINE
-static uint32_t DXAIRPrimitiveTypeToPrimitiveTopology(IRRuntimePrimitiveType primitiveType)
-{
-    switch (primitiveType)
-    {
-        case IRRuntimePrimitiveTypePoint: return 1;
-        case IRRuntimePrimitiveTypeLine: return 2;
-        case IRRuntimePrimitiveTypeLineStrip: return 3;
-        case IRRuntimePrimitiveTypeTriangle: return 4;
-        case IRRuntimePrimitiveTypeTriangleStrip: return 5;
-        case IRRuntimePrimitiveTypeLineWithAdj: return 10;
-        case IRRuntimePrimitiveTypeTriangleWithAdj: return 12;
         default: return 0;
     }
     return 0;
@@ -895,11 +933,11 @@ void IRRuntimeDrawIndexedPrimitivesGeometryEmulation(renderencoder_t enc,
     
     IRRuntimeDrawParams drawParams;
     drawParams.drawIndexed = (IRRuntimeDrawIndexedArgument){
-        .startInstanceLocation = baseInstance,
+        .indexCountPerInstance = indexCountPerInstance,
         .instanceCount = instanceCount,
-        .baseVertexLocation = baseVertex,
         .startIndexLocation = startIndex,
-        .indexCountPerInstance = indexCountPerInstance
+        .baseVertexLocation = baseVertex,
+        .startInstanceLocation = baseInstance
     };
     
     
@@ -917,6 +955,67 @@ void IRRuntimeDrawIndexedPrimitivesGeometryEmulation(renderencoder_t enc,
     #else
     
     drawInfo.indexBuffer = indexBuffer.gpuAddress;
+    
+    [enc setObjectBytes:&drawInfo           length:sizeof(IRRuntimeDrawInfo)        atIndex:kIRArgumentBufferUniformsBindPoint];
+    [enc setMeshBytes:&drawInfo             length:sizeof(IRRuntimeDrawInfo)        atIndex:kIRArgumentBufferUniformsBindPoint];
+    [enc setObjectBytes:&drawParams         length:sizeof(IRRuntimeDrawParams)      atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+    [enc setMeshBytes:&drawParams           length:sizeof(IRRuntimeDrawParams)      atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+    
+    [enc drawMeshThreadgroups:objectThreadgroupCount
+  threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
+    threadsPerMeshThreadgroup:MTLSizeMake(meshThreadgroupSize, 1, 1)];
+    
+    #endif
+}
+
+
+IR_INLINE
+void IRRuntimeDrawPrimitivesGeometryEmulation(renderencoder_t enc,
+                                              IRRuntimePrimitiveType primitiveType,
+                                              IRRuntimeGeometryPipelineConfig geometryPipelineConfig,
+                                              uint32_t instanceCount,
+                                              uint32_t vertexCountPerInstance,
+                                              uint32_t baseVertex,
+                                              uint32_t baseInstance)
+{
+    IRRuntimeDrawInfo drawInfo = IRRuntimeCalculateDrawInfoForGSEmulation(primitiveType,
+                                                                          (indextype_t)-1,
+                                                                          geometryPipelineConfig.gsVertexSizeInBytes,
+                                                                          geometryPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                          instanceCount);
+    drawInfo.indexType = kIRNonIndexedDraw;
+    
+    mtlsize_t objectThreadgroupCount = IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulation(vertexCountPerInstance,
+                                                                                                          drawInfo.objectThreadgroupVertexStride,
+                                                                                                          primitiveType,
+                                                                                                          instanceCount);
+    
+    uint32_t objectThreadgroupSize,meshThreadgroupSize;
+    IRRuntimeCalculateThreadgroupSizeForGeometry(primitiveType,
+                                                 geometryPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                 drawInfo.objectThreadgroupVertexStride,
+                                                 &objectThreadgroupSize,
+                                                 &meshThreadgroupSize);
+    
+    IRRuntimeDrawParams drawParams;
+    drawParams.draw = (IRRuntimeDrawArgument){
+        .vertexCountPerInstance = vertexCountPerInstance,
+        .instanceCount = instanceCount,
+        .startVertexLocation = baseVertex,
+        .startInstanceLocation = baseInstance
+    };
+    
+    
+    #ifdef IR_RUNTIME_METALCPP
+    
+    enc->setObjectBytes(&drawInfo,            sizeof(IRRuntimeDrawInfo),       kIRArgumentBufferUniformsBindPoint);
+    enc->setMeshBytes(&drawInfo,              sizeof(IRRuntimeDrawInfo),       kIRArgumentBufferUniformsBindPoint);
+    enc->setObjectBytes(&drawParams,          sizeof(IRRuntimeDrawParams),     kIRArgumentBufferDrawArgumentsBindPoint);
+    enc->setMeshBytes(&drawParams,            sizeof(IRRuntimeDrawParams),     kIRArgumentBufferDrawArgumentsBindPoint);
+    
+    enc->drawMeshThreadgroups(objectThreadgroupCount, MTL::Size::Make(objectThreadgroupSize, 1, 1), MTL::Size::Make(meshThreadgroupSize, 1, 1));
+    
+    #else
     
     [enc setObjectBytes:&drawInfo           length:sizeof(IRRuntimeDrawInfo)        atIndex:kIRArgumentBufferUniformsBindPoint];
     [enc setMeshBytes:&drawInfo             length:sizeof(IRRuntimeDrawInfo)        atIndex:kIRArgumentBufferUniformsBindPoint];
@@ -1009,11 +1108,11 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
     
     IRRuntimeDrawParams drawParams;
     drawParams.drawIndexed = (IRRuntimeDrawIndexedArgument){
-        .startInstanceLocation = baseInstance,
+        .indexCountPerInstance = indexCountPerInstance,
         .instanceCount = instanceCount,
-        .baseVertexLocation = baseVertex,
         .startIndexLocation = startIndex,
-        .indexCountPerInstance = indexCountPerInstance
+        .baseVertexLocation = baseVertex,
+        .startInstanceLocation = baseInstance
     };
     
     uint32_t threadgroupMem = 16;
@@ -1042,6 +1141,87 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
 #else
     drawInfo.indexBuffer = indexBuffer.gpuAddress;
     
+    
+    [enc setObjectBytes:&drawInfo                length:sizeof(IRRuntimeDrawInfo)         atIndex:kIRArgumentBufferUniformsBindPoint];
+    [enc setMeshBytes:&drawInfo                  length:sizeof(IRRuntimeDrawInfo)         atIndex:kIRArgumentBufferUniformsBindPoint];
+    [enc setObjectBytes:&drawParams              length:sizeof(IRRuntimeDrawParams)       atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+    [enc setMeshBytes:&drawParams                length:sizeof(IRRuntimeDrawParams)       atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+
+    [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
+    [enc setObjectThreadgroupMemoryLength:prefixSumMem atIndex:1];
+    
+    [enc drawMeshThreadgroups:objectThreadgroupCount
+  threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
+    threadsPerMeshThreadgroup:MTLSizeMake(meshThreadgroupSize, 1, 1)];
+#endif // IR_RUNTIME_METALCPP
+}
+
+IR_INLINE
+void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
+                                               IRRuntimePrimitiveType primitiveTopology,
+                                               IRRuntimeTessellationPipelineConfig tessellationPipelineConfig,
+                                               uint32_t instanceCount,
+                                               uint32_t vertexCountPerInstance,
+                                               uint32_t baseInstance,
+                                               uint32_t baseVertex)
+{
+    IRRuntimeDrawInfo drawInfo = IRRuntimeCalculateDrawInfoForGSTSEmulation(
+                                                    /* primitiveType */                          primitiveTopology,
+                                                    /* indexType */                              (indextype_t)-1,
+                                                    /* tessellatorOutputPrimitive */             tessellationPipelineConfig.outputPrimitiveType,
+                                                    /* gsMaxInputPrimitivesPerMeshThreadgroup */ tessellationPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                    /* hsPatchesPerObjectThreadgroup */          tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup,
+                                                    /* hsInputControlPointsPerPatch */           tessellationPipelineConfig.hsInputControlPointCount,
+                                                    /* hsObjectThreadsPerPatch */                tessellationPipelineConfig.hsMaxObjectThreadsPerThreadgroup,
+                                                    /* gsInstanceCount */                        tessellationPipelineConfig.gsInstanceCount);
+    drawInfo.indexType = kIRNonIndexedDraw;
+    
+    
+    mtlsize_t objectThreadgroupCount = IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulation(vertexCountPerInstance,
+                                                                                                          drawInfo.objectThreadgroupVertexStride,
+                                                                                                          primitiveTopology,
+                                                                                                          instanceCount);
+    
+    uint32_t objectThreadgroupSize, meshThreadgroupSize;
+    IRRuntimeCalculateThreadgroupSizeForTessellationAndGeometry(tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup,
+                                                                tessellationPipelineConfig.hsMaxObjectThreadsPerThreadgroup,
+                                                                tessellationPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                &objectThreadgroupSize,
+                                                                &meshThreadgroupSize);
+
+    
+    IRRuntimeDrawParams drawParams;
+    drawParams.draw = (IRRuntimeDrawArgument){
+        .vertexCountPerInstance = vertexCountPerInstance,
+        .instanceCount = instanceCount,
+        .startVertexLocation = baseVertex,
+        .startInstanceLocation = baseInstance
+        
+    };
+    
+    uint32_t threadgroupMem = 16;
+    uint32_t prefixSumMem = 16;
+    
+    threadgroupMem = tessellationPipelineConfig.vsOutputSizeInBytes *
+                        tessellationPipelineConfig.hsInputControlPointCount *
+                                    tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup;
+    
+    prefixSumMem = 15360 - (32 * 4);
+    
+#ifdef IR_RUNTIME_METALCPP
+    
+    enc->setObjectBytes(&drawInfo,              sizeof(IRRuntimeDrawInfo),         kIRArgumentBufferUniformsBindPoint);
+    enc->setMeshBytes(&drawInfo,                sizeof(IRRuntimeDrawInfo),         kIRArgumentBufferUniformsBindPoint);
+    enc->setObjectBytes(&drawParams,            sizeof(IRRuntimeDrawParams),       kIRArgumentBufferDrawArgumentsBindPoint);
+    enc->setMeshBytes(&drawParams,              sizeof(IRRuntimeDrawParams),       kIRArgumentBufferDrawArgumentsBindPoint);
+    
+    enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
+    enc->setObjectThreadgroupMemoryLength(prefixSumMem, 1);
+
+    enc->drawMeshThreadgroups(objectThreadgroupCount,
+                              MTL::Size::Make(objectThreadgroupSize, 1, 1),
+                              MTL::Size::Make(meshThreadgroupSize, 1, 1));
+#else
     
     [enc setObjectBytes:&drawInfo                length:sizeof(IRRuntimeDrawInfo)         atIndex:kIRArgumentBufferUniformsBindPoint];
     [enc setMeshBytes:&drawInfo                  length:sizeof(IRRuntimeDrawInfo)         atIndex:kIRArgumentBufferUniformsBindPoint];
@@ -1365,31 +1545,37 @@ renderpipelinestate_t IRRuntimeNewGeometryTessellationEmulationPipeline(device_t
     // Geometry function:
     
     {
-        // Not done here: verify the stage is not just passthrough.
-        
         // Configure function:
-        bool enableTessellationEmulation = true;
-        bool enableStreamOut = false;
-        
-        MTL::FunctionConstantValues* pFunctionConstants = MTL::FunctionConstantValues::alloc()->init();
-        
-        pFunctionConstants->setConstantValue(&enableTessellationEmulation,
-                                             MTL::DataTypeBool, MTLSTR("tessellationEnabled"));
-        
-        pFunctionConstants->setConstantValue(&enableStreamOut,
-                                             MTL::DataTypeBool, MTLSTR("streamOutEnabled"));
-        
-        pFunctionConstants->setConstantValue(&(descriptor->pipelineConfig.vsOutputSizeInBytes),
-                                             MTL::DataTypeInt, MTLSTR("vertex_shader_output_size_fc"));
-        
-        MTL::FunctionDescriptor* pFunctionDesc = MTL::FunctionDescriptor::alloc()->init();
-        pFunctionDesc->setConstantValues(pFunctionConstants);
-        pFunctionDesc->setName( NS::String::string(descriptor->geometryFunctionName, NS::UTF8StringEncoding) );
-        
-        pGeometryFn = descriptor->geometryLibrary->newFunction(pFunctionDesc, error);
-        
-        pFunctionDesc->release();
-        pFunctionConstants->release();
+        if (descriptor->geometryLibrary != nullptr)
+        {
+            bool enableTessellationEmulation = true;
+            bool enableStreamOut = false;
+            
+            MTL::FunctionConstantValues* pFunctionConstants = MTL::FunctionConstantValues::alloc()->init();
+            
+            pFunctionConstants->setConstantValue(&enableTessellationEmulation,
+                                                 MTL::DataTypeBool, MTLSTR("tessellationEnabled"));
+            
+            pFunctionConstants->setConstantValue(&enableStreamOut,
+                                                 MTL::DataTypeBool, MTLSTR("streamOutEnabled"));
+            
+            pFunctionConstants->setConstantValue(&(descriptor->pipelineConfig.vsOutputSizeInBytes),
+                                                 MTL::DataTypeInt, MTLSTR("vertex_shader_output_size_fc"));
+            
+            MTL::FunctionDescriptor* pFunctionDesc = MTL::FunctionDescriptor::alloc()->init();
+            pFunctionDesc->setConstantValues(pFunctionConstants);
+            pFunctionDesc->setName( NS::String::string(descriptor->geometryFunctionName, NS::UTF8StringEncoding) );
+            
+            pGeometryFn = descriptor->geometryLibrary->newFunction(pFunctionDesc, error);
+            
+            pFunctionDesc->release();
+            pFunctionConstants->release();
+        }
+        else
+        {
+            NS::String* passthroughName = NS::String::string(descriptor->geometryFunctionName, NS::UTF8StringEncoding);
+            pGeometryFn = descriptor->domainLibrary->newFunction(passthroughName);
+        }
         if (!pGeometryFn)
         {
             goto exit_geometry_function_error;
@@ -1521,8 +1707,7 @@ exit_stagein_function_error:
         
         MTLFunctionDescriptor* pFunctionDesc = [[MTLFunctionDescriptor alloc] init];
         [pFunctionDesc setConstantValues:pFunctionConstants];
-        
-        NSString* functionName = [NSString stringWithFormat:@"%s.dxil_irconverter_object_shader", descriptor->vertexFunctionName];
+        pFunctionDesc.name = [NSString stringWithFormat:@"%s.dxil_irconverter_object_shader", descriptor->vertexFunctionName];
         
         pVertexFn = [descriptor->vertexLibrary newFunctionWithDescriptor:pFunctionDesc error:error];
         
@@ -1573,32 +1758,37 @@ exit_stagein_function_error:
     // Geometry function:
     
     {
-        // Not done here: verify the stage is not just passthrough.
-        
-        // Configure function:
-        bool enableTessellationEmulation = true;
-        bool enableStreamOut = false;
-        
-        MTLFunctionConstantValues* pFunctionConstants = [[MTLFunctionConstantValues alloc] init];
-        
-        [pFunctionConstants setConstantValue:&enableTessellationEmulation
-                                        type:MTLDataTypeBool
-                                    withName:@"tessellationEnabled"];
-        
-        [pFunctionConstants setConstantValue:&enableStreamOut
-                                        type:MTLDataTypeBool
-                                    withName:@"streamOutEnabled"];
-        
-        [pFunctionConstants setConstantValue:&(descriptor->pipelineConfig.vsOutputSizeInBytes)
-                                        type:MTLDataTypeInt
-                                    withName:@"vertex_shader_output_size_fc"];
-        
-        MTLFunctionDescriptor* pFunctionDesc = [[MTLFunctionDescriptor alloc] init];
-        [pFunctionDesc setConstantValues:pFunctionConstants];
-        [pFunctionDesc setName:[NSString stringWithUTF8String:descriptor->geometryFunctionName]];
-        
-        pGeometryFn = [descriptor->geometryLibrary newFunctionWithDescriptor:pFunctionDesc error:error];
-        
+        if (descriptor->geometryLibrary != nil)
+        {
+            // Configure function:
+            bool enableTessellationEmulation = true;
+            bool enableStreamOut = false;
+            
+            MTLFunctionConstantValues* pFunctionConstants = [[MTLFunctionConstantValues alloc] init];
+            
+            [pFunctionConstants setConstantValue:&enableTessellationEmulation
+                                            type:MTLDataTypeBool
+                                        withName:@"tessellationEnabled"];
+            
+            [pFunctionConstants setConstantValue:&enableStreamOut
+                                            type:MTLDataTypeBool
+                                        withName:@"streamOutEnabled"];
+            
+            [pFunctionConstants setConstantValue:&(descriptor->pipelineConfig.vsOutputSizeInBytes)
+                                            type:MTLDataTypeInt
+                                        withName:@"vertex_shader_output_size_fc"];
+            
+            MTLFunctionDescriptor* pFunctionDesc = [[MTLFunctionDescriptor alloc] init];
+            [pFunctionDesc setConstantValues:pFunctionConstants];
+            [pFunctionDesc setName:[NSString stringWithUTF8String:descriptor->geometryFunctionName]];
+            
+            pGeometryFn = [descriptor->geometryLibrary newFunctionWithDescriptor:pFunctionDesc error:error];
+        }
+        else
+        {
+            NSString* passthroughName = [NSString stringWithUTF8String:descriptor->geometryFunctionName];
+            pGeometryFn = [descriptor->domainLibrary newFunctionWithName:passthroughName];
+        }
         if (!pGeometryFn)
         {
             return nil;

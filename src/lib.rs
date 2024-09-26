@@ -318,6 +318,7 @@ impl IRCompiler {
         any_hit_intrinsics_mask: u64,
         callable_args: u64,
         max_recursive_depth: i32,
+        ray_generation_compilation_mode: ffi::IRRayGenerationCompilationMode,
     ) {
         unsafe {
             self.funcs.IRCompilerSetRayTracingPipelineArguments(
@@ -329,6 +330,7 @@ impl IRCompiler {
                 any_hit_intrinsics_mask,
                 callable_args,
                 max_recursive_depth,
+                ray_generation_compilation_mode,
             )
         }
     }
