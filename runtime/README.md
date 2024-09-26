@@ -18,7 +18,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-saxaboom-runtime = "0.1.0"
+saxaboom-runtime = "0.2.0-beta.1"
 ```
 
 Example to create a descriptor to a buffer:
