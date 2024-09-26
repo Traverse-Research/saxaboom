@@ -3,7 +3,9 @@ name: Publish
 on:
   push:
     tags:
-    paths: "/Cargo.toml"
+    paths:
+      - "/Cargo.toml"
+      - "/runtime/Cargo.toml"
 
 jobs:
   Publish:

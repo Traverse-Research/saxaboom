@@ -1,6 +1,6 @@
 [package]
 name = "saxaboom-runtime"
-version = "0.1.0+irconverter-2.0"
+version = "0.2.0-beta.1+irconverter-2.0.4"
 authors = ["Traverse Research <support@traverseresearch.nl>"]
 edition = "2021"
 license = "Apache-2.0"
