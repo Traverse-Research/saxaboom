@@ -10,17 +10,20 @@ pub mod bindings {
     // Use an include to be able to import more items into this module as below
     include!("bindings.rs");
 
-    pub use metal::MTLResourceID;
+    pub use objc2_metal::MTLResourceID;
 }
 pub use bindings as ffi;
+
+use objc2::runtime::ProtocolObject;
+use objc2_metal::{MTLBuffer, MTLSamplerState, MTLTexture};
 
 /// Rust version of `IRBufferView` using [`metal`] types.
 #[doc(alias = "IRBufferView")]
 pub struct BufferView<'a> {
-    pub buffer: &'a metal::Buffer,
+    pub buffer: &'a ProtocolObject<dyn MTLBuffer>,
     pub buffer_offset: u64,
     pub buffer_size: u64,
-    pub texture_buffer_view: Option<&'a metal::Texture>,
+    pub texture_buffer_view: Option<&'a ProtocolObject<dyn MTLTexture>>,
     pub texture_view_offset_in_elements: u32,
     pub typed_buffer: bool,
 }
@@ -52,9 +55,11 @@ impl ffi::IRDescriptorTableEntry {
     #[doc(alias = "IRDescriptorTableSetBufferView")]
     pub fn buffer_view(buffer_view: &BufferView<'_>) -> Self {
         Self {
-            gpuVA: buffer_view.buffer.gpu_address() + buffer_view.buffer_offset,
+            gpuVA: buffer_view.buffer.gpuAddress() + buffer_view.buffer_offset,
             textureViewID: match buffer_view.texture_buffer_view {
-                Some(texture) => texture.gpu_resource_id()._impl,
+                Some(texture) => unsafe {
+                    std::mem::transmute::<objc2_metal::MTLResourceID, u64>(texture.gpuResourceID())
+                },
                 None => 0,
             },
             metadata: Self::buffer_metadata(buffer_view),
@@ -66,11 +71,13 @@ impl ffi::IRDescriptorTableEntry {
     /// This function is a port of the `IRDescriptorTableSetTexture` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
     #[doc(alias = "IRDescriptorTableSetTexture")]
-    pub fn texture(argument: &metal::Texture, min_lod_clamp: f32) -> Self {
+    pub fn texture(argument: &ProtocolObject<dyn MTLTexture>, min_lod_clamp: f32) -> Self {
         const METADATA: u32 = 0; // According to the current docs, the metadata must be 0
         Self {
             gpuVA: 0,
-            textureViewID: argument.gpu_resource_id()._impl,
+            textureViewID: unsafe {
+                std::mem::transmute::<objc2_metal::MTLResourceID, u64>(argument.gpuResourceID())
+            },
             metadata: min_lod_clamp.to_bits() as u64 | (METADATA as u64) << 32,
         }
     }
@@ -81,11 +88,11 @@ impl ffi::IRDescriptorTableEntry {
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
     #[doc(alias = "IRDescriptorTableSetSampler")]
     #[allow(unused_variables, unreachable_code, dead_code)]
-    // TODO: Expose this function when metal-rs contains the update
-    /* pub */
-    fn sampler(argument: &metal::SamplerState, lod_bias: f32) -> Self {
+    pub fn sampler(argument: &ProtocolObject<dyn MTLSamplerState>, lod_bias: f32) -> Self {
         Self {
-            gpuVA: todo!("Add gpu_resource_id() to SamplerState: https://github.com/gfx-rs/metal-rs/pull/328"), // argument.gpu_resource_id()._impl,
+            gpuVA: unsafe {
+                std::mem::transmute::<objc2_metal::MTLResourceID, u64>(argument.gpuResourceID())
+            },
             textureViewID: 0,
             metadata: lod_bias.to_bits() as u64,
         }
