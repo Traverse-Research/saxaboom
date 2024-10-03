@@ -15,7 +15,7 @@ pub mod bindings {
 pub use bindings as ffi;
 
 use objc2::runtime::ProtocolObject;
-use objc2_metal::{MTLBuffer, MTLSamplerState, MTLTexture};
+use objc2_metal::{MTLBuffer, MTLResourceID, MTLSamplerState, MTLTexture};
 
 /// Rust version of `IRBufferView` using [`metal`] types.
 #[doc(alias = "IRBufferView")]
@@ -58,7 +58,7 @@ impl ffi::IRDescriptorTableEntry {
             gpuVA: buffer_view.buffer.gpuAddress() + buffer_view.buffer_offset,
             textureViewID: match buffer_view.texture_buffer_view {
                 Some(texture) => unsafe {
-                    std::mem::transmute::<objc2_metal::MTLResourceID, u64>(texture.gpuResourceID())
+                    std::mem::transmute::<MTLResourceID, u64>(texture.gpuResourceID())
                 },
                 None => 0,
             },
@@ -76,7 +76,7 @@ impl ffi::IRDescriptorTableEntry {
         Self {
             gpuVA: 0,
             textureViewID: unsafe {
-                std::mem::transmute::<objc2_metal::MTLResourceID, u64>(argument.gpuResourceID())
+                std::mem::transmute::<MTLResourceID, u64>(argument.gpuResourceID())
             },
             metadata: min_lod_clamp.to_bits() as u64 | (METADATA as u64) << 32,
         }
@@ -90,9 +90,7 @@ impl ffi::IRDescriptorTableEntry {
     #[allow(unused_variables, unreachable_code, dead_code)]
     pub fn sampler(argument: &ProtocolObject<dyn MTLSamplerState>, lod_bias: f32) -> Self {
         Self {
-            gpuVA: unsafe {
-                std::mem::transmute::<objc2_metal::MTLResourceID, u64>(argument.gpuResourceID())
-            },
+            gpuVA: unsafe { std::mem::transmute::<MTLResourceID, u64>(argument.gpuResourceID()) },
             textureViewID: 0,
             metadata: lod_bias.to_bits() as u64,
         }
