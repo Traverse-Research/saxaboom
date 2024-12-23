@@ -1,6 +1,8 @@
 #![doc = include_str!("../README.md")]
 
-#[allow(
+#[expect(
+    clippy::missing_safety_doc,
+    clippy::ptr_offset_with_cast,
     clippy::useless_transmute,
     non_camel_case_types,
     non_snake_case,
@@ -87,7 +89,6 @@ impl ffi::IRDescriptorTableEntry {
     /// This function is a port of the `IRDescriptorTableSetSampler` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
     #[doc(alias = "IRDescriptorTableSetSampler")]
-    #[allow(unused_variables, unreachable_code, dead_code)]
     pub fn sampler(argument: &ProtocolObject<dyn MTLSamplerState>, lod_bias: f32) -> Self {
         Self {
             gpuVA: unsafe { std::mem::transmute::<MTLResourceID, u64>(argument.gpuResourceID()) },
