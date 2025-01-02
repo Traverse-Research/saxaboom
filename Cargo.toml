@@ -20,4 +20,4 @@ members = [
 
 [dependencies]
 libloading = "0.8"
-thiserror = "1.0"
+thiserror = "2.0"
