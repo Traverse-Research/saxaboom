@@ -10,6 +10,7 @@ description = "Binding library for Metal Shader Converter"
 include = ["src", "LICENSE"]
 categories = ["api-bindings", "external-ffi-bindings", "graphics", "compilers"]
 keywords = ["metal", "shader", "metal_irconverter", "apple", "macos"]
+rust-version = "1.81"
 
 [workspace]
 members = [

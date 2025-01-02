@@ -10,14 +10,13 @@ use std::{
     sync::Arc,
 };
 
-#[allow(
+#[expect(
     clippy::missing_safety_doc,
     clippy::too_many_arguments,
     clippy::use_self,
     non_camel_case_types,
     non_snake_case,
-    non_upper_case_globals,
-    unused_extern_crates
+    non_upper_case_globals
 )]
 pub mod bindings;
 pub use bindings as ffi;

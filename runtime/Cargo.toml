@@ -9,6 +9,7 @@ repository = "https://github.com/Traverse-Research/saxaboom"
 description = "Runtime definitions for Metal Shader Converter"
 categories = ["api-bindings", "external-ffi-bindings", "graphics"]
 keywords = ["metal", "shader", "metal_irconverter", "apple", "macos"]
+rust-version = "1.81"
 
 [package.metadata.docs.rs]
 targets = [
