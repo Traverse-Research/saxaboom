@@ -21,5 +21,5 @@ targets = [
 ]
 
 [dependencies]
-objc2 = { version = "0.5", default-features = false }
-objc2-metal = { version = "0.2.2", default-features = false, features = ["std", "MTLResource", "MTLBuffer", "MTLTexture", "MTLSampler", "MTLTypes"] }
+objc2 = { version = "0.6", default-features = false }
+objc2-metal = { version = "0.3", default-features = false, features = ["std", "MTLAllocation", "MTLResource", "MTLBuffer", "MTLTexture", "MTLSampler", "MTLTypes"] }
