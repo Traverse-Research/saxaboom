@@ -21,3 +21,8 @@ members = [
 [dependencies]
 libloading = "0.8"
 thiserror = "2.0"
+
+[patch.crates-io]
+# Add as_raw: https://github.com/madsmtm/objc2/commit/94f104fd352fb26f191ef9f3c2ccee869ef73703
+objc2 = { git = "https://github.com/madsmtm/objc2.git", rev = "94f104fd352fb26f191ef9f3c2ccee869ef73703" }
+objc2-metal = { git = "https://github.com/madsmtm/objc2.git", rev = "94f104fd352fb26f191ef9f3c2ccee869ef73703" }
