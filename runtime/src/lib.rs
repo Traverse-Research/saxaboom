@@ -76,7 +76,7 @@ impl ffi::IRDescriptorTableEntry {
         Self {
             gpuVA: 0,
             textureViewID: unsafe { argument.gpuResourceID() }.to_raw(),
-            metadata: min_lod_clamp.to_bits() as u64 | (METADATA as u64) << 32,
+            metadata: min_lod_clamp.to_bits() as u64 | ((METADATA as u64) << 32),
         }
     }
 
