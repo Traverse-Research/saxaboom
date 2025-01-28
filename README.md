@@ -26,7 +26,8 @@ use saxaboom::{ffi, MetalIrConverter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load the library
-    let metal_irconverter = MetalIrConverter::new("libmetalirconverter.dylib").unwrap();
+    let metal_irconverter =
+        MetalIrConverter::new(libloading::library_filename("metalirconverter")).unwrap();
     // Create an instance of IRCompiler
     let mut compiler = metal_irconverter.create_compiler();
     // Create an object containing DXIL bytes, replace &[0u8] with your DXIL data

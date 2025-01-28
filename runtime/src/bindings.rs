@@ -194,7 +194,7 @@ pub struct IRDispatchRaysArgument {
     pub SmpDescHeap: u64,
     pub VisibleFunctionTable: resourceid_t,
     pub IntersectionFunctionTable: resourceid_t,
-    pub Pad: [u32; 7usize],
+    pub IntersectionFunctionTables: u64,
 }
 impl Default for IRDispatchRaysArgument {
     fn default() -> Self {
