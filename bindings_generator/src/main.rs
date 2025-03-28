@@ -101,9 +101,14 @@ impl ParseCallbacks for RenameCallback {
                 enum_name = String::from("IRRuntimeTessellatorOutput");
             }
 
-            // For this specific enum, strip off the `Mode` suffix
+            // For these two specific enums, strip off the `Mode` suffix which is not repeated in
+            // their variants.  Note that a generic `strip_suffix()` solution won't work because
+            // enums like `IRTextureAddressMode` _do_ share the `Mode` suffix in their variants.
             if enum_name == "IRRayGenerationCompilationMode" {
                 enum_name = String::from("IRRayGenerationCompilation");
+            }
+            if enum_name == "IRIntersectionFunctionCompilationMode" {
+                enum_name = String::from("IRIntersectionFunctionCompilation");
             }
 
             let new_name = original_variant_name

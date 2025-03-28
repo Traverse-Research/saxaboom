@@ -34,8 +34,10 @@
 
 #ifdef __METAL_VERSION__
     #define IR_CONSTANT_PTR(ptr)              constant ptr*
+    #define IR_DEVICE_PTR(ptr)                device ptr*
 #else
     #define IR_CONSTANT_PTR(ptr)              uint64_t
+    #define IR_DEVICE_PTR(ptr)                uint64_t
 #endif // __METAL_VERSION__
 
 typedef struct IRShaderIdentifier
@@ -96,9 +98,11 @@ typedef struct IRDispatchRaysDescriptor
     using RaygenFunctionType = void(constant top_level_global_ab*, constant top_level_local_ab*, constant res_desc_heap_ab*, constant smp_desc_heap_ab*, constant IRDispatchRaysArgument*, uint3);
     #define RaygenFunctionPointerTable metal::visible_function_table<RaygenFunctionType>
     #define IFT                        metal::raytracing::intersection_function_table<>
+    #define MSLAccelerationStructure   metal::raytracing::instance_acceleration_structure
 #else
     #define RaygenFunctionPointerTable resourceid_t
     #define IFT                        resourceid_t
+    #define MSLAccelerationStructure   uint64_t
 #endif
 
 typedef struct IRDispatchRaysArgument
@@ -109,7 +113,7 @@ typedef struct IRDispatchRaysArgument
     IR_CONSTANT_PTR(smp_desc_heap_ab)    SmpDescHeap;
     RaygenFunctionPointerTable           VisibleFunctionTable;
     IFT                                  IntersectionFunctionTable;
-    uint32_t                             Pad[7];
+    IR_CONSTANT_PTR(IFT)                 IntersectionFunctionTables;
 } IRDispatchRaysArgument;
 
 #ifdef IR_RUNTIME_METALCPP
@@ -120,8 +124,8 @@ typedef MTLDispatchThreadgroupsIndirectArguments dispatchthreadgroupsindirectarg
 
 typedef struct IRRaytracingAccelerationStructureGPUHeader
 {
-    IR_CONSTANT_PTR(metal::raytracing::instance_acceleration_structure) accelerationStructureID;
-    IR_CONSTANT_PTR(uint32_t) addressOfInstanceContributions;
+    MSLAccelerationStructure accelerationStructureID;
+    IR_DEVICE_PTR(uint32_t) addressOfInstanceContributions;
     uint64_t pad0[4];
     dispatchthreadgroupsindirectargs_t pad1;
 } IRRaytracingAccelerationStructureGPUHeader;
@@ -142,15 +146,15 @@ typedef struct IRRaytracingInstanceDescriptor
         
 #ifdef __METAL_VERSION__
 void IRRaytracingUpdateInstanceContributions(IRRaytracingAccelerationStructureGPUHeader header,
-                                             IRRaytracingInstanceDescriptor instanceDescriptor,
+                                             device IRRaytracingInstanceDescriptor* instanceDescriptor,
                                              uint32_t index);
 
 #ifdef IR_PRIVATE_IMPLEMENTATION
 void IRRaytracingUpdateInstanceContributions(IRRaytracingAccelerationStructureGPUHeader header,
-                                             IRRaytracingInstanceDescriptor instanceDescriptor,
+                                             device IRRaytracingInstanceDescriptor* instanceDescriptor,
                                              uint32_t index)
 {
-    header.addressOfInstanceContributions[index] = instanceDescriptor.InstanceContributionToHitGroupIndex[index];
+    header.addressOfInstanceContributions[index] = instanceDescriptor[index].InstanceContributionToHitGroupIndex;
 }
 #endif // IR_PRIVATE_IMPLEMENTATION
 #endif // __METAL_VERSION__

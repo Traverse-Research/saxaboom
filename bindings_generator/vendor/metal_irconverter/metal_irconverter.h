@@ -338,6 +338,12 @@ typedef enum IRRayGenerationCompilationMode
     IRRayGenerationCompilationVisibleFunction
 } IRRayGenerationCompilationMode;
 
+typedef enum IRIntersectionFunctionCompilationMode
+{
+    IRIntersectionFunctionCompilationVisibleFunction,
+    IRIntersectionFunctionCompilationIntersectionFunction,
+} IRIntersectionFunctionCompilationMode;
+
 enum IRErrorCode
 {
     IRErrorCodeNoError,
@@ -357,6 +363,8 @@ enum IRErrorCode
     IRErrorCodeUnrecognizedDXILHeader,
     IRErrorCodeInvalidRaytracingAttribute,
     IRErrorCodeNullHullShaderInputOutputMismatch,
+    IRErrorCodeInvalidRaytracingUserAttributeSize,
+    IRErrorCodeIncorrectHitgroupType,
     IRErrorCodeUnknown
 };
 
@@ -579,15 +587,16 @@ uint64_t IRObjectGatherRaytracingIntrinsics(IRObject* input, const char* entryPo
  * @param compiler compiler to configure
  * @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses.
  * @param raytracingPipelineFlags flags for the ray tracing pipeline your application builds from these shaders.
- * @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`).
- * @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`).
- * @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`).
- * @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`).
+ * @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`). The value must match across all functions of all types used in this RT pipeline.
  * @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.
  * @param rayGenerationCompilationMode set the ray-generation shader compilation mode to compile either as a compute kernel, or as a visible function for a shader binding table.
+ * @param intersectionFunctionCompilationMode set the any-hit/intersection function compilation mode to compile either as a visible function or Metal Intersection Function. The value must match across all functions of all types used in this RT pipeline.
  * @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail.
  */
-void IRCompilerSetRayTracingPipelineArguments(IRCompiler* compiler, uint32_t maxAttributeSizeInBytes, IRRaytracingPipelineFlags raytracingPipelineFlags, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs, int maxRecursiveDepth, IRRayGenerationCompilationMode rayGenerationCompilationMode);
+void IRCompilerSetRayTracingPipelineArguments(IRCompiler* compiler, uint32_t maxAttributeSizeInBytes, IRRaytracingPipelineFlags raytracingPipelineFlags, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs, int maxRecursiveDepth, IRRayGenerationCompilationMode rayGenerationCompilationMode, IRIntersectionFunctionCompilationMode intersectionFunctionCompilationMode);
 
 /**
  * Configure compiler compatibility flags.

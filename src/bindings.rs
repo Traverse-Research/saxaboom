@@ -2,7 +2,7 @@
 
 pub const IR_VERSION_MAJOR: u32 = 2;
 pub const IR_VERSION_MINOR: u32 = 0;
-pub const IR_VERSION_PATCH: u32 = 4;
+pub const IR_VERSION_PATCH: u32 = 5;
 pub const IRDescriptorRangeOffsetAppend: u32 = 4294967295;
 pub const IRIntrinsicMaskClosestHitAll: u64 = 2147483647;
 pub const IRIntrinsicMaskMissShaderAll: u64 = 32767;
@@ -851,6 +851,13 @@ pub enum IRRayGenerationCompilationMode {
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum IRIntersectionFunctionCompilationMode {
+    VisibleFunction = 0,
+    IntersectionFunction = 1,
+}
+#[repr(u32)]
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRErrorCode {
     NoError = 0,
     ShaderRequiresRootSignature = 1,
@@ -869,7 +876,9 @@ pub enum IRErrorCode {
     UnrecognizedDXILHeader = 14,
     InvalidRaytracingAttribute = 15,
     NullHullShaderInputOutputMismatch = 16,
-    Unknown = 17,
+    InvalidRaytracingUserAttributeSize = 17,
+    IncorrectHitgroupType = 18,
+    Unknown = 19,
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -1285,6 +1294,7 @@ pub struct metal_irconverter {
         callableArgs: u64,
         maxRecursiveDepth: ::std::os::raw::c_int,
         rayGenerationCompilationMode: IRRayGenerationCompilationMode,
+        intersectionFunctionCompilationMode: IRIntersectionFunctionCompilationMode,
     ),
     pub IRCompilerSetCompatibilityFlags:
         unsafe extern "C" fn(compiler: *mut IRCompiler, flags: IRCompatibilityFlags),
@@ -1967,7 +1977,7 @@ impl metal_irconverter {
     ) -> u64 {
         (self.IRObjectGatherRaytracingIntrinsics)(input, entryPoint)
     }
-    #[doc = " Configure a compiler with upfront information to generate an optimal interface between ray tracing functions.\n Calling this function is optional, but when omitted, the compiler needs to assume a worst-case scenario, significantly affecting runtime performance.\n Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.\n After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.\n Specifying a mask and then adding additional shaders to a pipeline that don't conform to it causes undefined behavior.\n @param compiler compiler to configure\n @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses.\n @param raytracingPipelineFlags flags for the ray tracing pipeline your application builds from these shaders.\n @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`).\n @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`).\n @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`).\n @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`).\n @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.\n @param rayGenerationCompilationMode set the ray-generation shader compilation mode to compile either as a compute kernel, or as a visible function for a shader binding table.\n @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail."]
+    #[doc = " Configure a compiler with upfront information to generate an optimal interface between ray tracing functions.\n Calling this function is optional, but when omitted, the compiler needs to assume a worst-case scenario, significantly affecting runtime performance.\n Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.\n After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.\n Specifying a mask and then adding additional shaders to a pipeline that don't conform to it causes undefined behavior.\n @param compiler compiler to configure\n @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses.\n @param raytracingPipelineFlags flags for the ray tracing pipeline your application builds from these shaders.\n @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`). The value must match across all functions of all types used in this RT pipeline.\n @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`). The value must match across all functions of all types used in this RT pipeline.\n @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`). The value must match across all functions of all types used in this RT pipeline.\n @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`). The value must match across all functions of all types used in this RT pipeline.\n @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.\n @param rayGenerationCompilationMode set the ray-generation shader compilation mode to compile either as a compute kernel, or as a visible function for a shader binding table.\n @param intersectionFunctionCompilationMode set the any-hit/intersection function compilation mode to compile either as a visible function or Metal Intersection Function. The value must match across all functions of all types used in this RT pipeline.\n @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail."]
     pub unsafe fn IRCompilerSetRayTracingPipelineArguments(
         &self,
         compiler: *mut IRCompiler,
@@ -1979,6 +1989,7 @@ impl metal_irconverter {
         callableArgs: u64,
         maxRecursiveDepth: ::std::os::raw::c_int,
         rayGenerationCompilationMode: IRRayGenerationCompilationMode,
+        intersectionFunctionCompilationMode: IRIntersectionFunctionCompilationMode,
     ) {
         (self.IRCompilerSetRayTracingPipelineArguments)(
             compiler,
@@ -1990,6 +2001,7 @@ impl metal_irconverter {
             callableArgs,
             maxRecursiveDepth,
             rayGenerationCompilationMode,
+            intersectionFunctionCompilationMode,
         )
     }
     #[doc = " Configure compiler compatibility flags.\n Compatibility flags allow you to tailor code generation to the specific requirements of your shaders.\n You typically enable compatibility flags to support a broader set of features and behaviors (such as out-of-bounds reads) when your shader needs them to operate correctly.\n These flags, however, carry a performance cost.\n Always use the minimum set of compatibility flags your shader needs to attain the highest runtime performance for IR code you compile.\n @param compiler the compiler to configure\n @param flags bitmask of compatibility flags to enable."]
