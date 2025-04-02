@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
-// Copyright 2023-2024 Apple Inc.
+// Copyright 2023-2025 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -161,6 +161,9 @@ void IRRaytracingUpdateInstanceContributions(IRRaytracingAccelerationStructureGP
         
 #ifndef __METAL_VERSION__
 
+extern const char* kIRRayDispatchIndirectionKernelName;
+extern const uint64_t kIRRayDispatchArgumentsBindPoint;
+
 /**
  * Encode an acceleration structure into the argument buffer.
  * @param entry the pointer to the descriptor table entry to encode the acceleration structure reference into.
@@ -199,10 +202,10 @@ void IRShaderIdentifierInit(IRShaderIdentifier* identifier, uint64_t shaderHandl
  */
 void IRShaderIdentifierInitWithCustomIntersection(IRShaderIdentifier* identifier, uint64_t shaderHandle, uint64_t intersectionShaderHandle) IR_OVERLOADABLE;
 
+#ifdef IR_PRIVATE_IMPLEMENTATION
+        
 const char* kIRRayDispatchIndirectionKernelName = "RaygenIndirection";
 const uint64_t kIRRayDispatchArgumentsBindPoint = 3;
-
-#ifdef IR_PRIVATE_IMPLEMENTATION
 
 IR_INLINE
 void IRShaderIdentifierInit(IRShaderIdentifier* identifier, uint64_t shaderHandle) IR_OVERLOADABLE
