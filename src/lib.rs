@@ -4,6 +4,7 @@ use std::{
     error,
     ffi::{c_char, CStr, OsStr},
     fmt,
+    marker::PhantomData,
     mem::MaybeUninit,
     ops::Deref,
     ptr::NonNull,
@@ -320,12 +321,99 @@ impl Drop for IRCompiler {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct IRInputLayoutDescriptor1<'a>(ffi::IRInputLayoutDescriptor1, PhantomData<&'a CStr>);
+
+impl<'a> IRInputLayoutDescriptor1<'a> {
+    pub fn new(
+        semantic_names: &[&'a CStr],
+        input_element_descs: &[ffi::IRInputElementDescriptor1],
+    ) -> Self {
+        const MAX_ELEMENTS: usize = 31; // Hardcoded in the struct
+
+        assert_eq!(semantic_names.len(), input_element_descs.len());
+        assert!(semantic_names.len() <= MAX_ELEMENTS);
+
+        let mut s = ffi::IRInputLayoutDescriptor1 {
+            semanticNames: [std::ptr::null(); MAX_ELEMENTS],
+            inputElementDescs: [unsafe { std::mem::zeroed() }; MAX_ELEMENTS],
+            numElements: semantic_names.len() as u32,
+        };
+
+        for (i, (name, element)) in semantic_names.iter().zip(input_element_descs).enumerate() {
+            s.semanticNames[i] = name.as_ptr();
+            s.inputElementDescs[i] = *element;
+        }
+
+        Self(s, PhantomData)
+    }
+}
+
+impl<'a> From<IRInputLayoutDescriptor1<'a>> for ffi::IRVersionedInputLayoutDescriptor {
+    fn from(value: IRInputLayoutDescriptor1<'a>) -> Self {
+        Self {
+            version: bindings::IRInputLayoutDescriptorVersion::_1,
+            u_1: ffi::IRVersionedInputLayoutDescriptor_u { desc_1_0: value.0 },
+        }
+    }
+}
+
 impl IRCompiler {
+    #[doc(alias = "IRCompilerSetValidationFlags")]
+    pub fn set_validation_flags(&mut self, validation_flags: ffi::IRCompilerValidationFlags) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetValidationFlags(self.me.as_ptr(), validation_flags)
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetStageInGenerationMode")]
+    pub fn set_stage_in_generation_mode(&mut self, stage: ffi::IRStageInCodeGenerationMode) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetStageInGenerationMode(self.me.as_ptr(), stage)
+        }
+    }
+
+    #[must_use]
+    #[doc(alias = "IRMetalLibSynthesizeStageInFunction")]
+    pub fn synthesize_stage_in_function(
+        &mut self,
+        vertex_shader_reflection: &IRShaderReflection,
+        layout: impl Into<ffi::IRVersionedInputLayoutDescriptor>,
+        binary: &IRMetalLibBinary,
+    ) -> bool {
+        unsafe {
+            self.funcs.IRMetalLibSynthesizeStageInFunction(
+                self.me.as_ptr(),
+                vertex_shader_reflection.me.as_ptr(),
+                &layout.into(),
+                binary.me.as_ptr(),
+            )
+        }
+    }
+
     #[doc(alias = "IRCompilerSetGlobalRootSignature")]
     pub fn set_global_root_signature(&mut self, root_signature: &IRRootSignature) {
         unsafe {
             self.funcs
                 .IRCompilerSetGlobalRootSignature(self.me.as_ptr(), root_signature.me.as_ptr())
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetLocalRootSignature")]
+    pub fn set_local_root_signature(&mut self, root_signature: &IRRootSignature) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetLocalRootSignature(self.me.as_ptr(), root_signature.me.as_ptr())
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetHitgroupType")]
+    pub fn set_hitgroup_type(&mut self, hit_group_type: ffi::IRHitGroupType) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetHitgroupType(self.me.as_ptr(), hit_group_type)
         }
     }
 
@@ -359,26 +447,57 @@ impl IRCompiler {
         }
     }
 
-    #[doc(alias = "IRCompilerSetHitgroupType")]
-    pub fn set_hitgroup_type(&mut self, hit_group_type: ffi::IRHitGroupType) {
+    #[doc(alias = "IRCompilerSetCompatibilityFlags")]
+    pub fn set_compatibility_flags(&mut self, flags: ffi::IRCompatibilityFlags) {
         unsafe {
             self.funcs
-                .IRCompilerSetHitgroupType(self.me.as_ptr(), hit_group_type)
+                .IRCompilerSetCompatibilityFlags(self.me.as_ptr(), flags)
         }
     }
 
-    #[doc(alias = "IRMetalLibSynthesizeIndirectIntersectionFunction")]
-    pub fn synthesize_indirect_intersection_function(&mut self) -> Option<IRMetalLibBinary> {
-        let binary = IRMetalLibBinary::new(self.funcs.clone());
-        if unsafe {
-            self.funcs.IRMetalLibSynthesizeIndirectIntersectionFunction(
-                self.me.as_ptr(),
-                binary.me.as_ptr(),
-            )
-        } {
-            Some(binary)
-        } else {
-            None
+    #[doc(alias = "IRCompilerSetInputTopology")]
+    pub fn set_input_topology(&mut self, input_topology: ffi::IRInputTopology) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetInputTopology(self.me.as_ptr(), input_topology)
+        }
+    }
+
+    #[doc(alias = "IRCompilerEnableGeometryAndTessellationEmulation")]
+    pub fn enable_geometry_and_tessellation_emulation(&mut self, enable: bool) {
+        unsafe {
+            self.funcs
+                .IRCompilerEnableGeometryAndTessellationEmulation(self.me.as_ptr(), enable)
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetDualSourceBlendingConfiguration")]
+    pub fn set_dual_source_blending_configuration(
+        &mut self,
+        configuration: ffi::IRDualSourceBlendingConfiguration,
+    ) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetDualSourceBlendingConfiguration(self.me.as_ptr(), configuration)
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetDepthFeedbackConfiguration")]
+    pub fn set_depth_feedback_configuration(
+        &mut self,
+        configuration: ffi::IRDepthFeedbackConfiguration,
+    ) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetDepthFeedbackConfiguration(self.me.as_ptr(), configuration)
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetIntRTMask")]
+    pub fn set_int_rt_mask(&mut self, int_rt_mask: u8) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetIntRTMask(self.me.as_ptr(), int_rt_mask)
         }
     }
 
@@ -397,11 +516,54 @@ impl IRCompiler {
         }
     }
 
+    #[doc(alias = "IRMetalLibSynthesizeIndirectIntersectionFunction")]
+    pub fn synthesize_indirect_intersection_function(&mut self) -> Option<IRMetalLibBinary> {
+        let binary = IRMetalLibBinary::new(self.funcs.clone());
+        if unsafe {
+            self.funcs.IRMetalLibSynthesizeIndirectIntersectionFunction(
+                self.me.as_ptr(),
+                binary.me.as_ptr(),
+            )
+        } {
+            Some(binary)
+        } else {
+            None
+        }
+    }
+
     #[doc(alias = "IRCompilerSetEntryPointName")]
     pub fn set_entry_point_name(&mut self, new_name: &CStr) {
         unsafe {
             self.funcs
                 .IRCompilerSetEntryPointName(self.me.as_ptr(), new_name.as_ptr())
+        }
+    }
+
+    /// See <https://developer.apple.com/documentation/metal/mtlgpufamily> for a list of GPU
+    /// families and the hardware that they correspond to.
+    /// See <https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf> for a specific
+    /// table denoting supported features per GPU family.
+    #[doc(alias = "IRCompilerSetMinimumGPUFamily")]
+    pub fn set_minimum_gpu_family(&mut self, family: ffi::IRGPUFamily) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetMinimumGPUFamily(self.me.as_ptr(), family)
+        }
+    }
+
+    #[doc(alias = "IRCompilerIgnoreRootSignature")]
+    pub fn ignore_root_signature(&mut self, ignore_embedded_root_signature: bool) {
+        unsafe {
+            self.funcs
+                .IRCompilerIgnoreRootSignature(self.me.as_ptr(), ignore_embedded_root_signature)
+        }
+    }
+
+    #[doc(alias = "IRCompilerIgnoreDebugInformation")]
+    pub fn ignore_debug_information(&mut self, ignore_debug_information: bool) {
+        unsafe {
+            self.funcs
+                .IRCompilerIgnoreDebugInformation(self.me.as_ptr(), ignore_debug_information)
         }
     }
 
@@ -417,18 +579,6 @@ impl IRCompiler {
                 operating_system,
                 version.as_ptr(),
             )
-        }
-    }
-
-    /// See <https://developer.apple.com/documentation/metal/mtlgpufamily> for a list of GPU
-    /// families and the hardware that they correspond to.
-    /// See <https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf> for a specific
-    /// table denoting supported features per GPU family.
-    #[doc(alias = "IRCompilerSetMinimumGPUFamily")]
-    pub fn set_minimum_gpu_family(&mut self, family: ffi::IRGPUFamily) {
-        unsafe {
-            self.funcs
-                .IRCompilerSetMinimumGPUFamily(self.me.as_ptr(), family)
         }
     }
 
@@ -458,7 +608,41 @@ impl IRCompiler {
             object.expect("IRCompilerAllocCompileAndLink should not return NULL without error");
         Ok(IRObject {
             me: object,
-            funcs: input.funcs.clone(),
+            funcs: self.funcs.clone(),
+        })
+    }
+
+    #[doc(alias = "IRCompilerAllocCombineCompileAndLink")]
+    pub fn alloc_combine_compile_and_link(
+        &self,
+        intersection_function_entry_point: &CStr,
+        intersection_function_bytecode: &IRObject,
+        any_hit_function_entry_point: &CStr,
+        any_hit_function_bytecode: &IRObject,
+    ) -> Result<IRObject, CompilerError> {
+        let mut error = std::ptr::null_mut();
+
+        let object = NonNull::new(unsafe {
+            self.funcs.IRCompilerAllocCombineCompileAndLink(
+                self.me.as_ptr(),
+                intersection_function_entry_point.as_ptr(),
+                intersection_function_bytecode.me.as_ptr(),
+                any_hit_function_entry_point.as_ptr(),
+                any_hit_function_bytecode.me.as_ptr(),
+                &mut error,
+            )
+        });
+
+        if let Some(error) = NonNull::new(error) {
+            let error = unsafe { IRError::from_ptr(error, self.funcs.clone()) };
+            return Err(CompilerError(error));
+        }
+
+        let object = object
+            .expect("IRCompilerAllocCombineCompileAndLink should not return NULL without error");
+        Ok(IRObject {
+            me: object,
+            funcs: self.funcs.clone(),
         })
     }
 }
