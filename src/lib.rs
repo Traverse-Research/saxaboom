@@ -4,6 +4,7 @@ use std::{
     error,
     ffi::{c_char, CStr, OsStr},
     fmt,
+    marker::PhantomData,
     mem::MaybeUninit,
     ops::Deref,
     ptr::NonNull,
@@ -320,6 +321,43 @@ impl Drop for IRCompiler {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct IRInputLayoutDescriptor1<'a>(ffi::IRInputLayoutDescriptor1, PhantomData<&'a CStr>);
+
+impl<'a> IRInputLayoutDescriptor1<'a> {
+    pub fn new(
+        semantic_names: &[&'a CStr],
+        input_element_descs: &[ffi::IRInputElementDescriptor1],
+    ) -> Self {
+        const MAX_ELEMENTS: usize = 31; // Hardcoded in the struct
+
+        assert_eq!(semantic_names.len(), input_element_descs.len());
+        assert!(semantic_names.len() <= MAX_ELEMENTS);
+
+        let mut s = ffi::IRInputLayoutDescriptor1 {
+            semanticNames: [std::ptr::null(); MAX_ELEMENTS],
+            inputElementDescs: [unsafe { std::mem::zeroed() }; MAX_ELEMENTS],
+            numElements: semantic_names.len() as u32,
+        };
+
+        for (i, (name, element)) in semantic_names.iter().zip(input_element_descs).enumerate() {
+            s.semanticNames[i] = name.as_ptr();
+            s.inputElementDescs[i] = *element;
+        }
+
+        Self(s, PhantomData)
+    }
+}
+
+impl<'a> From<IRInputLayoutDescriptor1<'a>> for ffi::IRVersionedInputLayoutDescriptor {
+    fn from(value: IRInputLayoutDescriptor1<'a>) -> Self {
+        Self {
+            version: bindings::IRInputLayoutDescriptorVersion::_1,
+            u_1: ffi::IRVersionedInputLayoutDescriptor_u { desc_1_0: value.0 },
+        }
+    }
+}
+
 impl IRCompiler {
     #[doc(alias = "IRCompilerSetValidationFlags")]
     pub fn set_validation_flags(&mut self, validation_flags: ffi::IRCompilerValidationFlags) {
@@ -337,24 +375,23 @@ impl IRCompiler {
         }
     }
 
-    // TODO: Requires layout
-    // #[must_use]
-    // #[doc(alias = "IRMetalLibSynthesizeStageInFunction")]
-    // pub fn synthesize_stage_in_function(
-    //     &mut self,
-    //     vertex_shader_reflection: &IRShaderReflection,
-    //     layout: impl Into<IRVersionedInputLayoutDescriptor>,
-    //     binary: &IRMetalLibBinary,
-    // ) -> bool {
-    //     unsafe {
-    //         self.funcs.IRMetalLibSynthesizeStageInFunction(
-    //             self.me.as_ptr(),
-    //             vertex_shader_reflection.me.as_ptr(),
-    //             &layout.into(),
-    //             binary.me.as_ptr(),
-    //         )
-    //     }
-    // }
+    #[must_use]
+    #[doc(alias = "IRMetalLibSynthesizeStageInFunction")]
+    pub fn synthesize_stage_in_function(
+        &mut self,
+        vertex_shader_reflection: &IRShaderReflection,
+        layout: impl Into<ffi::IRVersionedInputLayoutDescriptor>,
+        binary: &IRMetalLibBinary,
+    ) -> bool {
+        unsafe {
+            self.funcs.IRMetalLibSynthesizeStageInFunction(
+                self.me.as_ptr(),
+                vertex_shader_reflection.me.as_ptr(),
+                &layout.into(),
+                binary.me.as_ptr(),
+            )
+        }
+    }
 
     #[doc(alias = "IRCompilerSetGlobalRootSignature")]
     pub fn set_global_root_signature(&mut self, root_signature: &IRRootSignature) {
