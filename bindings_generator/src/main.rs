@@ -1,5 +1,10 @@
 use std::path::Path;
 
+use bindgen::{
+    callbacks::{EnumVariantValue, IntKind, ParseCallbacks},
+    Builder, EnumVariation, RustTarget,
+};
+
 fn main() {
     compiler_bindings();
     runtime_bindings();
@@ -11,14 +16,20 @@ fn compiler_bindings() {
     let out_file = crate_root.join("../src/bindings.rs");
     let include_dir = crate_root.join("vendor");
 
-    bindgen::Builder::default()
+    // Bump together with rust-version / MSRV
+    let Ok(target) = RustTarget::stable(81, 0) else {
+        // let-match until https://github.com/rust-lang/rust-bindgen/pull/3055 is released
+        panic!()
+    };
+    Builder::default()
+        .rust_target(target)
         .header(header.to_str().unwrap())
         .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&["-I", include_dir.to_str().unwrap()])
         .dynamic_link_require_all(true)
         .dynamic_library_name("metal_irconverter")
         .layout_tests(false)
-        .default_enum_style(bindgen::EnumVariation::Rust {
+        .default_enum_style(EnumVariation::Rust {
             non_exhaustive: true,
         })
         .bitfield_enum(".*Flags$")
@@ -40,12 +51,19 @@ fn runtime_bindings() {
     let out_file = crate_root.join("../runtime/src/bindings.rs");
     let include_dir = crate_root.join("vendor");
 
-    bindgen::Builder::default()
+    // Bump together with rust-version / MSRV
+    let Ok(target) = RustTarget::stable(81, 0) else {
+        // let-match until https://github.com/rust-lang/rust-bindgen/pull/3055 is released
+        panic!()
+    };
+
+    Builder::default()
+        .rust_target(target)
         .header(header.to_str().unwrap())
         .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&["-I", include_dir.to_str().unwrap(), "-xc++"])
         .layout_tests(false)
-        .default_enum_style(bindgen::EnumVariation::Rust {
+        .default_enum_style(EnumVariation::Rust {
             non_exhaustive: true,
         })
         .derive_default(true)
@@ -71,8 +89,6 @@ fn runtime_bindings() {
         .write_to_file(out_file)
         .expect("Couldn't write bindings!");
 }
-
-use bindgen::callbacks::{EnumVariantValue, ParseCallbacks};
 
 #[derive(Debug)]
 struct RenameCallback;
@@ -123,10 +139,10 @@ impl ParseCallbacks for RenameCallback {
         None
     }
 
-    fn int_macro(&self, name: &str, _value: i64) -> Option<bindgen::callbacks::IntKind> {
+    fn int_macro(&self, name: &str, _value: i64) -> Option<IntKind> {
         if name.starts_with("IRIntrinsicMask") {
             // Match the argument type passed to IRCompilerSetRayTracingPipelineArguments
-            Some(bindgen::callbacks::IntKind::U64)
+            Some(IntKind::U64)
         } else {
             None
         }
