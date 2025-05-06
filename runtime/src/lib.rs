@@ -16,8 +16,12 @@ pub mod bindings {
 }
 pub use bindings as ffi;
 
+use std::ptr::NonNull;
+
 use objc2::runtime::ProtocolObject;
-use objc2_metal::{MTLBuffer, MTLSamplerState, MTLTexture};
+use objc2_metal::{
+    MTLBuffer, MTLIndexType, MTLPrimitiveType, MTLRenderCommandEncoder, MTLSamplerState, MTLTexture,
+};
 
 /// Rust version of `IRBufferView` using [`metal`] types.
 #[doc(alias = "IRBufferView")]
@@ -117,5 +121,134 @@ impl ffi::IRDescriptorTableEntry {
             << ffi::kIRTexViewOffset;
         metadata |= (view.typed_buffer as u64) << ffi::kIRTypedBufferOffset;
         metadata
+    }
+}
+
+#[doc(alias = "IRRuntimeDrawPrimitives")]
+pub fn draw_primitives(
+    encoder: &ProtocolObject<dyn MTLRenderCommandEncoder>,
+    primitive_type: MTLPrimitiveType,
+    vertex_start: usize,
+    vertex_count: usize,
+    instance_count: usize,
+    base_instance: usize,
+) {
+    let mut dp = ffi::IRRuntimeDrawParams {
+        u_1: ffi::IRRuntimeDrawParams_u {
+            draw: ffi::IRRuntimeDrawArgument {
+                vertexCountPerInstance: vertex_count as u32,
+                instanceCount: instance_count as u32,
+                startVertexLocation: vertex_start as u32,
+                startInstanceLocation: base_instance as u32,
+            },
+        },
+    };
+    unsafe {
+        encoder.setVertexBytes_length_atIndex(
+            NonNull::new(&raw mut dp).unwrap().cast(),
+            size_of_val(&dp),
+            ffi::kIRArgumentBufferDrawArgumentsBindPoint as usize,
+        );
+        let mut non_indexed_draw = ffi::kIRNonIndexedDraw;
+        encoder.setVertexBytes_length_atIndex(
+            NonNull::new(&raw mut non_indexed_draw).unwrap().cast(),
+            size_of_val(&non_indexed_draw),
+            ffi::kIRArgumentBufferUniformsBindPoint as usize,
+        );
+        encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
+            primitive_type,
+            vertex_start,
+            vertex_count,
+            instance_count,
+            base_instance,
+        );
+    }
+}
+
+#[doc(alias = "IRMetalIndexToIRIndex")]
+pub fn metal_index_to_ir_index(index_type: MTLIndexType) -> u16 {
+    index_type.0 as u16 + 1
+}
+
+#[doc(alias = "IRRuntimeDrawIndexedPrimitives")]
+#[expect(clippy::too_many_arguments)]
+pub fn draw_indexed_primitives(
+    encoder: &ProtocolObject<dyn MTLRenderCommandEncoder>,
+    primitive_type: MTLPrimitiveType,
+    index_count: usize,
+    index_type: MTLIndexType,
+    index_buffer: &ProtocolObject<dyn MTLBuffer>,
+    index_buffer_offset: usize,
+    instance_count: usize,
+    base_vertex: isize,
+    base_instance: usize,
+) {
+    let mut dp = ffi::IRRuntimeDrawParams {
+        u_1: ffi::IRRuntimeDrawParams_u {
+            drawIndexed: ffi::IRRuntimeDrawIndexedArgument {
+                indexCountPerInstance: index_count as u32,
+                instanceCount: instance_count as u32,
+                startIndexLocation: index_buffer_offset as u32,
+                baseVertexLocation: base_vertex as i32,
+                startInstanceLocation: base_instance as u32,
+            },
+        },
+    };
+    let mut ir_index_type = metal_index_to_ir_index(index_type);
+    unsafe {
+        encoder.setVertexBytes_length_atIndex(
+            NonNull::new(&raw mut dp).unwrap().cast(),
+            size_of_val(&dp),
+            ffi::kIRArgumentBufferDrawArgumentsBindPoint as usize,
+        );
+        encoder.setVertexBytes_length_atIndex(
+            NonNull::new(&raw mut ir_index_type).unwrap().cast(),
+            size_of_val(&ir_index_type),
+            ffi::kIRArgumentBufferUniformsBindPoint as usize,
+        );
+        encoder.drawIndexedPrimitives_indexCount_indexType_indexBuffer_indexBufferOffset_instanceCount_baseVertex_baseInstance(
+            primitive_type,
+            index_count,
+            index_type,
+            index_buffer,
+            index_buffer_offset,
+            instance_count,
+            base_vertex,
+            base_instance,
+        );
+    }
+}
+
+#[doc(alias = "IRRuntimeDrawIndexedPrimitives")]
+pub fn draw_indexed_primitives_indirect(
+    encoder: &ProtocolObject<dyn MTLRenderCommandEncoder>,
+    primitive_type: MTLPrimitiveType,
+    index_type: MTLIndexType,
+    index_buffer: &ProtocolObject<dyn MTLBuffer>,
+    index_buffer_offset: usize,
+    indirect_buffer: &ProtocolObject<dyn MTLBuffer>,
+    indirect_buffer_offset: usize,
+) {
+    let mut ir_index_type = metal_index_to_ir_index(index_type);
+
+    unsafe {
+        encoder.setVertexBuffer_offset_atIndex(
+            Some(indirect_buffer),
+            0,
+            ffi::kIRArgumentBufferDrawArgumentsBindPoint as usize,
+        );
+        encoder.setVertexBytes_length_atIndex(
+            NonNull::new(&raw mut ir_index_type).unwrap().cast(),
+            size_of_val(&ir_index_type),
+            ffi::kIRArgumentBufferUniformsBindPoint as usize,
+        );
+        encoder.drawIndexedPrimitives_indexType_indexBuffer_indexBufferOffset_indirectBuffer_indirectBufferOffset(
+            primitive_type,
+            index_type,
+            index_buffer,
+            index_buffer_offset,
+            indirect_buffer,
+            indirect_buffer_offset
+        );
     }
 }
