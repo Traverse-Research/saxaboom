@@ -123,45 +123,56 @@ impl IRShaderReflection {
 
     #[doc(alias = "IRShaderReflectionCopyComputeInfo")]
     pub fn compute_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedCSInfo> {
-        let mut info = MaybeUninit::uninit();
-        if unsafe {
-            self.funcs.IRShaderReflectionCopyComputeInfo(
-                self.me.as_ptr(),
-                version,
-                info.as_mut_ptr(),
-            )
-        } {
-            Some(IRVersionedCSInfo {
-                me: unsafe { info.assume_init() },
-                funcs: self.funcs.clone(),
-            })
-        } else {
-            None
+        unsafe { IRVersionedCSInfo::new(self, version) }
+    }
+}
+
+macro_rules! impl_verioned_info {
+    ($name:ident, $create:ident, $release:ident) => {
+        pub struct $name {
+            me: ffi::$name,
+            funcs: Arc<bindings::metal_irconverter>,
         }
-    }
+
+        impl Deref for $name {
+            type Target = ffi::$name;
+
+            fn deref(&self) -> &Self::Target {
+                &self.me
+            }
+        }
+
+        impl Drop for $name {
+            fn drop(&mut self) {
+                assert!(unsafe { self.funcs.$release(&mut self.me) })
+            }
+        }
+
+        impl $name {
+            unsafe fn new(
+                reflection: &IRShaderReflection,
+                version: ffi::IRReflectionVersion,
+            ) -> Option<Self> {
+                let mut info = MaybeUninit::uninit();
+                let success =
+                    reflection
+                        .funcs
+                        .$create(reflection.me.as_ptr(), version, info.as_mut_ptr());
+
+                success.then(|| Self {
+                    me: info.assume_init(),
+                    funcs: Arc::clone(&reflection.funcs),
+                })
+            }
+        }
+    };
 }
 
-pub struct IRVersionedCSInfo {
-    me: ffi::IRVersionedCSInfo,
-    funcs: Arc<bindings::metal_irconverter>,
-}
-
-impl Deref for IRVersionedCSInfo {
-    type Target = ffi::IRVersionedCSInfo;
-
-    fn deref(&self) -> &Self::Target {
-        &self.me
-    }
-}
-
-impl Drop for IRVersionedCSInfo {
-    fn drop(&mut self) {
-        assert!(unsafe {
-            self.funcs
-                .IRShaderReflectionReleaseComputeInfo(&mut self.me)
-        })
-    }
-}
+impl_verioned_info!(
+    IRVersionedCSInfo,
+    IRShaderReflectionCopyComputeInfo,
+    IRShaderReflectionReleaseComputeInfo
+);
 
 pub struct IRObject {
     me: NonNull<bindings::IRObject>,
