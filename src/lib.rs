@@ -99,7 +99,7 @@ impl MetalIrConverter {
     }
 }
 
-macro_rules! verioned_info {
+macro_rules! versioned_info {
     ($name:ident, $create:ident, $release:ident) => {
         pub struct $name {
             me: ffi::$name,
@@ -146,55 +146,55 @@ macro_rules! verioned_info {
     };
 }
 
-verioned_info!(
+versioned_info!(
     IRVersionedCSInfo,
     IRShaderReflectionCopyComputeInfo,
     IRShaderReflectionReleaseComputeInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedVSInfo,
     IRShaderReflectionCopyVertexInfo,
     IRShaderReflectionReleaseVertexInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedFSInfo,
     IRShaderReflectionCopyFragmentInfo,
     IRShaderReflectionReleaseFragmentInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedGSInfo,
     IRShaderReflectionCopyGeometryInfo,
     IRShaderReflectionReleaseGeometryInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedHSInfo,
     IRShaderReflectionCopyHullInfo,
     IRShaderReflectionReleaseHullInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedDSInfo,
     IRShaderReflectionCopyDomainInfo,
     IRShaderReflectionReleaseDomainInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedMSInfo,
     IRShaderReflectionCopyMeshInfo,
     IRShaderReflectionReleaseMeshInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedASInfo,
     IRShaderReflectionCopyAmplificationInfo,
     IRShaderReflectionReleaseAmplificationInfo
 );
 
-verioned_info!(
+versioned_info!(
     IRVersionedRTInfo,
     IRShaderReflectionCopyRaytracingInfo,
     IRShaderReflectionReleaseRaytracingInfo
