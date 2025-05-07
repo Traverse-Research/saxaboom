@@ -131,10 +131,16 @@ macro_rules! verioned_info {
                         .funcs
                         .$create(reflection.me.as_ptr(), version, info.as_mut_ptr());
 
-                success.then(|| Self {
+                if !success {
+                    return None;
+                }
+
+                let info = Self {
                     me: info.assume_init(),
                     funcs: Arc::clone(&reflection.funcs),
-                })
+                };
+
+                Some(info)
             }
         }
     };
