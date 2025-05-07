@@ -121,22 +121,23 @@ macro_rules! versioned_info {
         }
 
         impl $name {
-            unsafe fn new(
+            fn new(
                 reflection: &IRShaderReflection,
                 version: ffi::IRReflectionVersion,
             ) -> Option<Self> {
                 let mut info = MaybeUninit::uninit();
-                let success =
+                let success = unsafe {
                     reflection
                         .funcs
-                        .$create(reflection.me.as_ptr(), version, info.as_mut_ptr());
+                        .$create(reflection.me.as_ptr(), version, info.as_mut_ptr())
+                };
 
                 if !success {
                     return None;
                 }
 
                 let info = Self {
-                    me: info.assume_init(),
+                    me: unsafe { info.assume_init() },
                     funcs: Arc::clone(&reflection.funcs),
                 };
 
@@ -224,32 +225,32 @@ impl IRShaderReflection {
 
     #[doc(alias = "IRShaderReflectionCopyVertexInfo")]
     pub fn vertex_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedVSInfo> {
-        unsafe { IRVersionedVSInfo::new(self, version) }
+        IRVersionedVSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyFragmentInfo")]
     pub fn fragment_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedFSInfo> {
-        unsafe { IRVersionedFSInfo::new(self, version) }
+        IRVersionedFSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyGeometryInfo")]
     pub fn geometry_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedGSInfo> {
-        unsafe { IRVersionedGSInfo::new(self, version) }
+        IRVersionedGSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyHullInfo")]
     pub fn hull_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedHSInfo> {
-        unsafe { IRVersionedHSInfo::new(self, version) }
+        IRVersionedHSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyDomainInfo")]
     pub fn domain_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedDSInfo> {
-        unsafe { IRVersionedDSInfo::new(self, version) }
+        IRVersionedDSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyMeshInfo")]
     pub fn mesh_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedMSInfo> {
-        unsafe { IRVersionedMSInfo::new(self, version) }
+        IRVersionedMSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyAmplificationInfo")]
@@ -257,17 +258,17 @@ impl IRShaderReflection {
         &self,
         version: ffi::IRReflectionVersion,
     ) -> Option<IRVersionedASInfo> {
-        unsafe { IRVersionedASInfo::new(self, version) }
+        IRVersionedASInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyComputeInfo")]
     pub fn compute_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedCSInfo> {
-        unsafe { IRVersionedCSInfo::new(self, version) }
+        IRVersionedCSInfo::new(self, version)
     }
 
     #[doc(alias = "IRShaderReflectionCopyRaytracingInfo")]
     pub fn raytracing_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedRTInfo> {
-        unsafe { IRVersionedRTInfo::new(self, version) }
+        IRVersionedRTInfo::new(self, version)
     }
 }
 
