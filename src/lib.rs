@@ -99,6 +99,104 @@ impl MetalIrConverter {
     }
 }
 
+macro_rules! versioned_info {
+    ($name:ident, $create:ident, $release:ident) => {
+        pub struct $name {
+            me: ffi::$name,
+            funcs: Arc<bindings::metal_irconverter>,
+        }
+
+        impl Deref for $name {
+            type Target = ffi::$name;
+
+            fn deref(&self) -> &Self::Target {
+                &self.me
+            }
+        }
+
+        impl Drop for $name {
+            fn drop(&mut self) {
+                assert!(unsafe { self.funcs.$release(&mut self.me) })
+            }
+        }
+
+        impl $name {
+            fn new(
+                reflection: &IRShaderReflection,
+                version: ffi::IRReflectionVersion,
+            ) -> Option<Self> {
+                let mut info = MaybeUninit::uninit();
+                if unsafe {
+                    reflection
+                        .funcs
+                        .$create(reflection.me.as_ptr(), version, info.as_mut_ptr())
+                } {
+                    Some(Self {
+                        me: unsafe { info.assume_init() },
+                        funcs: Arc::clone(&reflection.funcs),
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+    };
+}
+
+versioned_info!(
+    IRVersionedCSInfo,
+    IRShaderReflectionCopyComputeInfo,
+    IRShaderReflectionReleaseComputeInfo
+);
+
+versioned_info!(
+    IRVersionedVSInfo,
+    IRShaderReflectionCopyVertexInfo,
+    IRShaderReflectionReleaseVertexInfo
+);
+
+versioned_info!(
+    IRVersionedFSInfo,
+    IRShaderReflectionCopyFragmentInfo,
+    IRShaderReflectionReleaseFragmentInfo
+);
+
+versioned_info!(
+    IRVersionedGSInfo,
+    IRShaderReflectionCopyGeometryInfo,
+    IRShaderReflectionReleaseGeometryInfo
+);
+
+versioned_info!(
+    IRVersionedHSInfo,
+    IRShaderReflectionCopyHullInfo,
+    IRShaderReflectionReleaseHullInfo
+);
+
+versioned_info!(
+    IRVersionedDSInfo,
+    IRShaderReflectionCopyDomainInfo,
+    IRShaderReflectionReleaseDomainInfo
+);
+
+versioned_info!(
+    IRVersionedMSInfo,
+    IRShaderReflectionCopyMeshInfo,
+    IRShaderReflectionReleaseMeshInfo
+);
+
+versioned_info!(
+    IRVersionedASInfo,
+    IRShaderReflectionCopyAmplificationInfo,
+    IRShaderReflectionReleaseAmplificationInfo
+);
+
+versioned_info!(
+    IRVersionedRTInfo,
+    IRShaderReflectionCopyRaytracingInfo,
+    IRShaderReflectionReleaseRaytracingInfo
+);
+
 pub struct IRShaderReflection {
     me: NonNull<bindings::IRShaderReflection>,
     funcs: Arc<bindings::metal_irconverter>,
@@ -121,45 +219,52 @@ impl IRShaderReflection {
         Self { me, funcs }
     }
 
+    #[doc(alias = "IRShaderReflectionCopyVertexInfo")]
+    pub fn vertex_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedVSInfo> {
+        IRVersionedVSInfo::new(self, version)
+    }
+
+    #[doc(alias = "IRShaderReflectionCopyFragmentInfo")]
+    pub fn fragment_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedFSInfo> {
+        IRVersionedFSInfo::new(self, version)
+    }
+
+    #[doc(alias = "IRShaderReflectionCopyGeometryInfo")]
+    pub fn geometry_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedGSInfo> {
+        IRVersionedGSInfo::new(self, version)
+    }
+
+    #[doc(alias = "IRShaderReflectionCopyHullInfo")]
+    pub fn hull_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedHSInfo> {
+        IRVersionedHSInfo::new(self, version)
+    }
+
+    #[doc(alias = "IRShaderReflectionCopyDomainInfo")]
+    pub fn domain_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedDSInfo> {
+        IRVersionedDSInfo::new(self, version)
+    }
+
+    #[doc(alias = "IRShaderReflectionCopyMeshInfo")]
+    pub fn mesh_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedMSInfo> {
+        IRVersionedMSInfo::new(self, version)
+    }
+
+    #[doc(alias = "IRShaderReflectionCopyAmplificationInfo")]
+    pub fn amplification_info(
+        &self,
+        version: ffi::IRReflectionVersion,
+    ) -> Option<IRVersionedASInfo> {
+        IRVersionedASInfo::new(self, version)
+    }
+
     #[doc(alias = "IRShaderReflectionCopyComputeInfo")]
     pub fn compute_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedCSInfo> {
-        let mut info = MaybeUninit::uninit();
-        if unsafe {
-            self.funcs.IRShaderReflectionCopyComputeInfo(
-                self.me.as_ptr(),
-                version,
-                info.as_mut_ptr(),
-            )
-        } {
-            Some(IRVersionedCSInfo {
-                me: unsafe { info.assume_init() },
-                funcs: self.funcs.clone(),
-            })
-        } else {
-            None
-        }
+        IRVersionedCSInfo::new(self, version)
     }
-}
 
-pub struct IRVersionedCSInfo {
-    me: ffi::IRVersionedCSInfo,
-    funcs: Arc<bindings::metal_irconverter>,
-}
-
-impl Deref for IRVersionedCSInfo {
-    type Target = ffi::IRVersionedCSInfo;
-
-    fn deref(&self) -> &Self::Target {
-        &self.me
-    }
-}
-
-impl Drop for IRVersionedCSInfo {
-    fn drop(&mut self) {
-        assert!(unsafe {
-            self.funcs
-                .IRShaderReflectionReleaseComputeInfo(&mut self.me)
-        })
+    #[doc(alias = "IRShaderReflectionCopyRaytracingInfo")]
+    pub fn raytracing_info(&self, version: ffi::IRReflectionVersion) -> Option<IRVersionedRTInfo> {
+        IRVersionedRTInfo::new(self, version)
     }
 }
 
