@@ -126,22 +126,18 @@ macro_rules! versioned_info {
                 version: ffi::IRReflectionVersion,
             ) -> Option<Self> {
                 let mut info = MaybeUninit::uninit();
-                let success = unsafe {
+                if unsafe {
                     reflection
                         .funcs
                         .$create(reflection.me.as_ptr(), version, info.as_mut_ptr())
-                };
-
-                if !success {
-                    return None;
+                } {
+                    Some(Self {
+                        me: unsafe { info.assume_init() },
+                        funcs: Arc::clone(&reflection.funcs),
+                    })
+                } else {
+                    None
                 }
-
-                let info = Self {
-                    me: unsafe { info.assume_init() },
-                    funcs: Arc::clone(&reflection.funcs),
-                };
-
-                Some(info)
             }
         }
     };
