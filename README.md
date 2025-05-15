@@ -16,7 +16,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-saxaboom = "0.2.0-beta.1"
+saxaboom = "0.2.0"
 ```
 
 Example to compile `DXIL` to `metallib`:
