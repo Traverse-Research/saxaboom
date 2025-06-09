@@ -6,6 +6,8 @@ fn main() {
 }
 
 fn compiler_bindings() {
+    let msrv = bindgen::RustTarget::stable(81, 0).unwrap();
+
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let header = crate_root.join("wrapper.h");
     let out_file = crate_root.join("../src/bindings.rs");
@@ -13,6 +15,7 @@ fn compiler_bindings() {
 
     bindgen::Builder::default()
         .header(header.to_str().unwrap())
+        .rust_target(msrv)
         .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&["-I", include_dir.to_str().unwrap()])
         .dynamic_link_require_all(true)
@@ -35,6 +38,8 @@ fn compiler_bindings() {
 }
 
 fn runtime_bindings() {
+    let msrv = bindgen::RustTarget::stable(81, 0).unwrap();
+
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let header = crate_root.join("runtime_wrapper.h");
     let out_file = crate_root.join("../runtime/src/bindings.rs");
@@ -42,6 +47,7 @@ fn runtime_bindings() {
 
     bindgen::Builder::default()
         .header(header.to_str().unwrap())
+        .rust_target(msrv)
         .parse_callbacks(Box::new(RenameCallback))
         .clang_args(&["-I", include_dir.to_str().unwrap(), "-xc++"])
         .layout_tests(false)
@@ -72,14 +78,19 @@ fn runtime_bindings() {
         .expect("Couldn't write bindings!");
 }
 
-use bindgen::callbacks::{EnumVariantValue, ParseCallbacks};
+use bindgen::callbacks::{EnumVariantValue, ItemInfo, ItemKind, ParseCallbacks};
 
 #[derive(Debug)]
 struct RenameCallback;
 impl ParseCallbacks for RenameCallback {
-    fn item_name(&self, item: &str) -> Option<String> {
-        item.strip_suffix("__bindgen_ty_1")
-            .map(|name| format!("{name}_u"))
+    fn item_name(&self, item: ItemInfo<'_>) -> Option<String> {
+        if let ItemKind::Type = item.kind {
+            item.name
+                .strip_suffix("__bindgen_ty_1")
+                .map(|name| format!("{name}_u"))
+        } else {
+            None
+        }
     }
 
     fn enum_variant_name(
