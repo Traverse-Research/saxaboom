@@ -59,6 +59,7 @@ struct IRRootSignature;
 struct IRMetalLibBinary;
 struct IRShaderReflection;
 struct IRError;
+struct IRRayTracingPipelineConfiguration;
 
 typedef struct IRCompiler IRCompiler;
 typedef struct IRObject IRObject;
@@ -66,6 +67,7 @@ typedef struct IRRootSignature IRRootSignature;
 typedef struct IRMetalLibBinary IRMetalLibBinary;
 typedef struct IRShaderReflection IRShaderReflection;
 typedef struct IRError IRError;
+typedef struct IRRayTracingPipelineConfiguration IRRayTracingPipelineConfiguration;
 
 typedef enum IRShaderStage
 {
@@ -195,7 +197,8 @@ typedef enum IRCompatibilityFlags
     IRCompatibilityFlagPositionInvariance                = (1 << 4),
     IRCompatibilityFlagSampleNanToZero                   = (1 << 5),
     IRCompatibilityFlagTexWriteRoundingRTZ               = (1 << 6),
-    IRCompatibilityFlagSuppress2DComputeDerivativeErrors = (1 << 7)
+    IRCompatibilityFlagSuppress2DComputeDerivativeErrors = (1 << 7),
+    IRCompatibilityFlagForceTextureArray                 = (1 << 8),
 } IRCompatibilityFlags;
 
 typedef struct IRStaticSamplerDescriptor
@@ -342,6 +345,7 @@ typedef enum IRIntersectionFunctionCompilationMode
 {
     IRIntersectionFunctionCompilationVisibleFunction,
     IRIntersectionFunctionCompilationIntersectionFunction,
+    IRIntersectionFunctionCompilationIntersectionFunctionBufferFunction,
 } IRIntersectionFunctionCompilationMode;
 
 enum IRErrorCode
@@ -365,6 +369,7 @@ enum IRErrorCode
     IRErrorCodeNullHullShaderInputOutputMismatch,
     IRErrorCodeInvalidRaytracingUserAttributeSize,
     IRErrorCodeIncorrectHitgroupType,
+    IRErrorCodeFP64Usage,
     IRErrorCodeUnknown
 };
 
@@ -470,8 +475,8 @@ void IRCompilerDestroy(IRCompiler* compiler);
 
 /**
  * Allocate a new object and populate it with the results of compiling and linking IR bytecode.
- * @note Prior calls to `IRCompilerSetHitgroupType`, `IRCompilerSetRayTracingPipelineArguments`, `IRCompilerSetGlobalRootSignature`, `IRCompilerSetLocalRootSignature` influence the bytecode this function produces.
- * @note you need to call `IRCompilerSetRayTracingPipelineArguments` before compiling ray tracing shaders.
+ * @note Prior calls to `IRCompilerSetHitgroupType`, `IRCompilerSetRayTracingPipelineConfiguration`, `IRCompilerSetGlobalRootSignature`, `IRCompilerSetLocalRootSignature` influence the bytecode this function produces.
+ * @note you need to call `IRCompilerSetRayTracingPipelineConfiguration` before compiling ray tracing shaders.
  * @param compiler compiler to use for the translation process.
  * @param entryPointName optional entry point name to compile when converting a library with multiple entry points.
  * @param input input IR object.
@@ -485,9 +490,9 @@ IRObject* IRCompilerAllocCompileAndLink(IRCompiler* compiler, const char* entryP
  * This function allows representing the interactions between intersection and any-hit shaders on Metal, where these functions are fused together.
  * @warning Ensure you call `IRCompilerSetHitgroupType` prior to this function to specify the intersection type.
  * @note One of parameters `intersectionFunctionBytecode` and `anyHitFunctionBytecode` needs to be non-NULL.
- * @note If both parameters are non-NULL, this function uses the `anyHitfunctionBytecode` the latter references.
- * @note Prior calls to `IRCompilerSetHitgroupType`, `IRCompilerSetRayTracingPipelineArguments`, `IRCompilerSetGlobalRootSignature`, `IRCompilerSetLocalRootSignature` influence the bytecode this function produces.
- * @note you need to call `IRCompilerSetRayTracingPipelineArguments` before compiling ray tracing shaders.
+ * @note If both parameters are non-NULL, this function uses the `anyHitFunctionBytecode` the latter references.
+ * @note Prior calls to `IRCompilerSetHitgroupType`, `IRCompilerSetRayTracingPipelineConfiguration`, `IRCompilerSetGlobalRootSignature`, `IRCompilerSetLocalRootSignature` influence the bytecode this function produces.
+ * @note Call `IRCompilerSetRayTracingPipelineConfiguration` before compiling ray tracing shaders.
  * @param compiler compiler to use for the translation process.
  * @param intersectionFunctionEntryPointName optional entry point name corresponding to the intersection function.
  * @param intersectionFunctionBytecode optional input bytecode that provides the intersection function bytecode.
@@ -516,7 +521,7 @@ typedef enum IRStageInCodeGenerationMode
 /**
  * Configure whether the compiler should generate a Metal vertex fetch, or allow synthesizing a separate stage-in function.
  * Use Metal vertex fetch to specify a MTLVertexDescriptor to your pipelines at runtime. Request a separate stage-in function to link vertex fetch as a Metal linked function.
- * Using a separate stage-in function provides your shader with more flexitibility to perform type conversions, however, it requires more work to set up.
+ * Using a separate stage-in function provides your shader with more flexibility to perform type conversions, however, it requires more work to set up.
  * @param compiler compiler to configure.
  * @param stageInCodeGenerationMode code generation mode for the stage-in function.
  */
@@ -580,7 +585,7 @@ uint64_t IRObjectGatherRaytracingIntrinsics(IRObject* input, const char* entryPo
 
 /**
  * Configure a compiler with upfront information to generate an optimal interface between ray tracing functions.
- * Calling this function is optional, but when omitted, the compiler needs to assume a worst-case scenario, significantly affecting runtime performance.
+ * Calling this function is optional, but when omitted, the compiler assumes a worst-case scenario, affecting runtime performance.
  * Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.
  * After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.
  * Specifying a mask and then adding additional shaders to a pipeline that don't conform to it causes undefined behavior.
@@ -593,10 +598,100 @@ uint64_t IRObjectGatherRaytracingIntrinsics(IRObject* input, const char* entryPo
  * @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`). The value must match across all functions of all types used in this RT pipeline.
  * @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit.
  * @param rayGenerationCompilationMode set the ray-generation shader compilation mode to compile either as a compute kernel, or as a visible function for a shader binding table.
- * @param intersectionFunctionCompilationMode set the any-hit/intersection function compilation mode to compile either as a visible function or Metal Intersection Function. The value must match across all functions of all types used in this RT pipeline.
  * @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail.
  */
+IR_DEPRECATED("please use IRCompilerSetRayTracingPipelineConfiguration instead")
 void IRCompilerSetRayTracingPipelineArguments(IRCompiler* compiler, uint32_t maxAttributeSizeInBytes, IRRaytracingPipelineFlags raytracingPipelineFlags, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs, int maxRecursiveDepth, IRRayGenerationCompilationMode rayGenerationCompilationMode, IRIntersectionFunctionCompilationMode intersectionFunctionCompilationMode);
+
+
+/**
+ * Create a new instance of a ray tracing pipeline configuration.
+ * @return a newly-allocated IRRayTracingPipelineConfiguration instance.
+ * @note call `IRRayTracingPipelineConfigurationDestroy` to release the instance's memory.
+ */
+IRRayTracingPipelineConfiguration* IRRayTracingPipelineConfigurationCreate(void);
+
+/**
+ * Destroy an instance of a ray tracing pipeline configuration.
+ * @param configuration configuration object to destroy.
+ * @note allocate the instance by calling `IRRayTracingPipelineConfigurationCreate`.
+ */
+void IRRayTracingPipelineConfigurationDestroy(IRRayTracingPipelineConfiguration* configuration);
+
+/**
+ * Set the maximum attribute size in bytes for a ray tracing pipeline configuration object.
+ * @param configuration configuration object to modify.
+ * @param maxAttributeSizeInBytes the maximum number of ray tracing attributes (in bytes) that a pipeline consisting of these shaders uses (defaults to 16).
+ */
+void IRRayTracingPipelineConfigurationSetMaxAttributeSizeInBytes(IRRayTracingPipelineConfiguration* configuration, uint32_t maxAttributeSizeInBytes);
+
+/**
+ * Set ray tracing pipeline flags for a ray tracing pipeline configuration object.
+ * @param configuration configuration object to update.
+ * @param raytracingPipelineFlags flags the compiler specifies for the subsequent compiled ray tracing pipelines (defaults to `IRRaytracingPipelineFlagNone`).
+ */
+void IRRayTracingPipelineConfigurationSetPipelineFlags(IRRayTracingPipelineConfiguration* configuration, IRRaytracingPipelineFlags raytracingPipelineFlags);
+
+/**
+ * Set the intrinsic masks to generate an optimized interface between ray tracing functions.
+ * Calling this function is optional, but when omitted, the compiler assumes a worst-case scenario, affecting runtime performance.
+ * After calling this function, all subsequent shaders compiled need to conform to the masks provided, otherwise undefined behavior occurs.
+ * Use function `IRObjectGatherRaytracingIntrinsics` to collect the intrinsic usage mask for all closest hit, any hit, intersection, and callable shaders in the pipeline to build.
+ * @param configuration configuration object to modify.
+ * @param chs bitwise OR mask of all closest hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskClosestHitAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @param miss bitwise OR mask of all miss shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskMissShaderAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @param anyHit bitwise OR mask of all any hit shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskAnyHitShaderAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @param callableArgs bitwise OR mask of all callable shaders for a ray tracing pipeline your application builds using subsequent converted shaders (defaults to `IRIntrinsicMaskCallableShaderAll`). The value must match across all functions of all types used in this RT pipeline.
+ * @warning providing mask values other than the defaults or those returned by `IRObjectGatherRaytracingIntrinsics` may cause subsequent shader compilations to fail.
+ */
+void IRRayTracingPipelineConfigurationSetIntrinsicMasks(IRRayTracingPipelineConfiguration* configuration, uint64_t chs, uint64_t miss, uint64_t anyHit, uint64_t callableArgs);
+
+/**
+ * Specify the stop point for recursion when compiling shaders for a ray tracing pipeline.
+ * @param configuration configuration object to modify.
+ * @param maxRecursiveDepth stop point for recursion. Pass `IRRayTracingUnlimitedRecursionDepth` for no limit (default).
+ */
+void IRRayTracingPipelineConfigurationSetMaxRecursiveDepth(IRRayTracingPipelineConfiguration* configuration, int maxRecursiveDepth);
+
+/**
+ * Set the compilation mode for ray generation functions.
+ * @param configuration configuration object to modify.
+ * @param rayGenMode compilation mode for ray generation functions.
+ */
+void IRRayTracingPipelineConfigurationSetRayGenerationCompilationMode(IRRayTracingPipelineConfiguration* configuration, IRRayGenerationCompilationMode rayGenMode);
+
+/**
+ * Set the compilation mode for ray tracing intersection functions.
+ * @param configuration configuration object to modify.
+ * @param intersectionFunctionMode compilation mode for intersection functions.
+ */
+void IRRayTracingPipelineConfigurationSetIntersectionFunctionCompilationMode(IRRayTracingPipelineConfiguration* configuration, IRIntersectionFunctionCompilationMode intersectionFunctionMode);
+
+/**
+ * Enable the compiler to annotate converted shaders with function group information, potentially accelerating ray tracing function calling.
+ * @param configuration configuration object to modify.
+ * @param enableIntersectionFunctionGroups set to true to enable emitting annotations, false to disable it.
+ */
+void IRRayTracingPipelineConfigurationEnableIntersectionFunctionGroups(IRRayTracingPipelineConfiguration* configuration, bool enableIntersectionFunctionGroups);
+
+/**
+ * Enable converted shaders to directly access ray intersection results from memory.
+ * @param configuration configuration object to modify.
+ * @param enableDirectStateAccess set to true to enable compiled shaders to directly fetch intersection result data from memory,
+ * false to access data via parameter passing.
+ * @note this feature requires the converted shader pipeline to run on macOS 15, iOS 18, or later.
+ */
+void IRRayTracingPipelineConfigurationEnableDirectStateAccess(IRRayTracingPipelineConfiguration* configuration, bool enableDirectStateAccess);
+
+/**
+ * Set the ray tracing pipeline configuration preferences for a compiler.
+ * All subsequent shaders this compiler converts use this configuration.
+ * @param compiler compiler object to configure.
+ * @param configuration configuration to establish.
+ * @note the configuration should remain consistent across all shaders that form a single ray tracing pipeline, otherwise
+ * undefined behavior may occur.
+ */
+void IRCompilerSetRayTracingPipelineConfiguration(IRCompiler* compiler, const IRRayTracingPipelineConfiguration* configuration);
 
 /**
  * Configure compiler compatibility flags.
@@ -671,6 +766,14 @@ void IRCompilerSetDepthFeedbackConfiguration(IRCompiler* compiler, IRDepthFeedba
 void IRCompilerSetIntRTMask(IRCompiler* compiler, uint8_t intRTMask);
 
 /**
+ * Set fragment shader output sample mask.
+ * @param compiler compiler to configure.
+ * @param sampleMask bitmask to inform which samples get updated in active render targets. Defaults to 0xffffffff to update all samples
+ * This parameter is reset after each compilation.
+ */
+void IRCompilerSetSampleMask(IRCompiler* compiler, uint32_t sampleMask);
+
+/**
  * Synthesize an ray dispatch function that indirectly dispatches ray generation shaders.
  * @param compiler compiler configuration to use.
  * @param binary pointer to a binary into which to write the synthesized MetalIR.
@@ -690,7 +793,7 @@ bool IRMetalLibSynthesizeIndirectIntersectionFunction(const IRCompiler* compiler
 /**
  * Customize the name of the entry point functions generated by a compiler.
  * @param compiler compiler to configure.
- * @param newName name IRConverter assigns to the emited entry point.
+ * @param newName name IRConverter assigns to the emitted entry point.
  */
 void IRCompilerSetEntryPointName(IRCompiler* compiler, const char* newName);
 
@@ -706,7 +809,7 @@ typedef enum IRGPUFamily
 
 /**
  * Set the minimum GPU deployment target for MetalIR code generation.
- * Targetting a newer family may enable the compiler to emit MetalIR further optimized for newer GPUs, but may render it incompatible with older models.
+ * Targeting a newer family may enable the compiler to emit MetalIR further optimized for newer GPUs, but may render it incompatible with older models.
  * @param compiler compiler to configure.
  * @param family minimum GPU family supported by code generation.
  */
@@ -736,13 +839,33 @@ typedef enum IROperatingSystem
 
 /**
  * Set the minimum operating system software version target for Metal IR code generation.
- * Targetting a newer software version may enable the compiler to emi MetalIR further optimized for newer macOS and iOS releases, but it may render it incompatible with older operating system versions.
+ * Targeting a newer software version may enable the compiler to emi MetalIR further optimized for newer macOS and iOS releases, but it may render it incompatible with older operating system versions.
  * Setting a minimum deployment target newer than your SDK may produce an `IRErrorCodeUnableToLinkModule` error.
  * @param compiler compiler to configure.
  * @param operatingSystem operating system name.
  * @param version operating system version, such as "13.0.0" or "16.0.0".
 */
 void IRCompilerSetMinimumDeploymentTarget(IRCompiler* compiler, IROperatingSystem operatingSystem, const char* version);
+
+/**
+ * Set the register space that all function constant resources will use in the shader.
+ * Any cbuffer CBV defined within this space is treated as a function constant of size uint4 and with the name "FunctionConstant\_regN" where "N" is the register index
+ * These resources do not need to be present in the root signature, if they are present in the root signature the root signature properties for that resource are ignored
+ * @param compiler compiler to configure.
+ * @param spaceValue the register space that function constant cbuffer resources are defined in, set to UINT32_MAX to disable
+ */
+ 
+void IRCompilerSetFunctionConstantResourceSpace(IRCompiler* compiler, uint32_t spaceValue);
+
+/**
+ * Set the register space that all framebuffer fetch resources will use in the shader.
+ * Any Texture2D SRV defined within this space is treated as a framebuffer fetch input to the pixel shader, where the register index indicates the framebuffer attachment index
+ * These resources do not need to be present in the root signature, if they are present in the root signature the root signature properties for that resource are ignored
+ * @param compiler compiler to configure.
+ * @param spaceValue the register space that framebuffer fetch texture2d resources are defined in, set to UINT32_MAX to disable
+ */
+ 
+void IRCompilerSetFramebufferFetchResourceSpace(IRCompiler* compiler, uint32_t spaceValue);
 
 // Metallib manipulation
 
@@ -829,7 +952,9 @@ typedef enum IRFunctionConstantType
 {
     IRFunctionConstantTypeBool   = 53,
     IRFunctionConstantTypeInt    = 29,
-    IRFunctionConstantTypeFloat  = 3
+    IRFunctionConstantTypeInt4   = 32,
+    IRFunctionConstantTypeFloat  = 3,
+    
 } IRFunctionConstantType;
 
 typedef struct IRFunctionConstant
@@ -1314,7 +1439,7 @@ const char* IRVersionedRootSignatureDescriptorAllocStringAndSerialize(IRVersione
  * @param rootSignatureDescriptor root signature descriptor to serialize.
  * @return a string representation of the root signature descriptor. You need to release this string by calling IRVersionedRootSignatureDescriptorFreeString.
  */
-const char* IRVersionedRootSignatureDescriptorCopyJSONString(IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
+const char* IRVersionedRootSignatureDescriptorCopyJSONString(const IRVersionedRootSignatureDescriptor* rootSignatureDescriptor);
 
 /**
  * Release a string allocated by IRVersionedRootSignatureDescriptorAllocStringAndSerialize.
@@ -1349,6 +1474,16 @@ bool IRVersionedRootSignatureDescriptorDeserialize(const char* serialized, IRVer
 IRVersionedRootSignatureDescriptor* IRVersionedRootSignatureDescriptorCreateFromJSON(const char* serialized);
 
 /**
+ * Deserialize a versioned root signature descriptor from an array of bytes (blob).
+ * @param blob an array of bytes. This can correspond to a DXIL container, or a raw versioned root signature descriptor.
+ * @param blobSize number of bytes in the blob.
+ * @param error optional out parameter containing details about any deserialization errors.
+ * @return a deserialized versioned root signature descriptor, or NULL in case of an error.
+ * @note you need to release the returned instance by calling IRVersionedRootSignatureDescriptorRelease.
+ */
+IRVersionedRootSignatureDescriptor* IRVersionedRootSignatureDescriptorCreateFromBlob(const uint8_t* blob, uint32_t blobSize, IRError** error);
+
+/**
  * Release any arrays allocated by IRVersionedRootSignatureDescriptorDeserialize.
  * @param rootSignatureDescriptor root signature descriptor to release.
  */
@@ -1359,7 +1494,7 @@ void IRVersionedRootSignatureDescriptorRelease(IRVersionedRootSignatureDescripto
  * @param inputLayoutDescriptor descriptor to serialize.
  * @return a string representation of the input layout descriptor. You need to release this string by calling IRInputLayoutDescriptor1FreeString.
  */
-const char* IRInputLayoutDescriptor1CopyJSONString(IRInputLayoutDescriptor1* inputLayoutDescriptor);
+const char* IRInputLayoutDescriptor1CopyJSONString(const IRInputLayoutDescriptor1* inputLayoutDescriptor);
 
 /**
  * Release a string allocated by IRInputLayoutDescriptor1CopyJSONString.

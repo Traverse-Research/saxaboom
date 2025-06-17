@@ -140,13 +140,64 @@ where
         }
     }
 }
-pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct MTLDispatchThreadgroupsIndirectArguments {
     pub threadgroupsPerGrid: [u32; 3usize],
 }
 pub type resourceid_t = MTLResourceID;
+pub type uint = ::std::os::raw::c_uint;
+extern "C" {
+    pub static kIRArgumentBufferBindPoint: u64;
+}
+extern "C" {
+    pub static kIRDescriptorHeapBindPoint: u64;
+}
+extern "C" {
+    pub static kIRSamplerHeapBindPoint: u64;
+}
+extern "C" {
+    pub static kIRArgumentBufferHullDomainBindPoint: u64;
+}
+extern "C" {
+    pub static kIRArgumentBufferDrawArgumentsBindPoint: u64;
+}
+extern "C" {
+    pub static kIRArgumentBufferUniformsBindPoint: u64;
+}
+extern "C" {
+    pub static kIRVertexBufferBindPoint: u64;
+}
+extern "C" {
+    pub static kIRStageInAttributeStartIndex: u64;
+}
+extern "C" {
+    pub static mut kIRIndirectTriangleIntersectionFunctionName: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRIndirectProceduralIntersectionFunctionName: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRTrianglePassthroughGeometryShader: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRLinePassthroughGeometryShader: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRPointPassthroughGeometryShader: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRFunctionGroupRayGeneration: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRFunctionGroupClosestHit: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static mut kIRFunctionGroupMiss: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static kIRNonIndexedDraw: u16;
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRDescriptorTableEntry {
@@ -154,9 +205,15 @@ pub struct IRDescriptorTableEntry {
     pub textureViewID: u64,
     pub metadata: u64,
 }
-pub const kIRRuntimeTessellatorTablesBindPoint: u64 = 7;
-pub const kIRRuntimeTessellatorTablesCountsAndOffsetLength: u32 = 32768;
-pub const kIRRuntimeTessellatorTablesLookupTableLength: u32 = 701114;
+extern "C" {
+    pub static kIRRuntimeTessellatorTablesBindPoint: u64;
+}
+extern "C" {
+    pub static kIRRuntimeTessellatorTablesCountsAndOffsetLength: u32;
+}
+extern "C" {
+    pub static kIRRuntimeTessellatorTablesLookupTableLength: u32;
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRShaderIdentifier {
@@ -386,8 +443,12 @@ impl IRRaytracingInstanceDescriptor {
         __bindgen_bitfield_unit
     }
 }
-pub const kIRRayDispatchIndirectionKernelName: &[u8; 18] = b"RaygenIndirection\0";
-pub const kIRRayDispatchArgumentsBindPoint: u64 = 3;
+extern "C" {
+    pub static mut kIRRayDispatchIndirectionKernelName: *const ::std::os::raw::c_char;
+}
+extern "C" {
+    pub static kIRRayDispatchArgumentsBindPoint: u64;
+}
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -505,6 +566,7 @@ pub enum IRRuntimePrimitiveType {
     TriangleStrip = 4,
     LineWithAdj = 5,
     TriangleWithAdj = 6,
+    LineStripWithAdj = 7,
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -611,30 +673,54 @@ pub struct IRRuntimeDrawInfo {
     pub inputControlPointsPerPatch: u16,
     pub indexBuffer: u64,
 }
-pub const kIRArgumentBufferBindPoint: u64 = 2;
-pub const kIRArgumentBufferHullDomainBindPoint: u64 = 3;
-pub const kIRDescriptorHeapBindPoint: u64 = 0;
-pub const kIRSamplerHeapBindPoint: u64 = 1;
-pub const kIRArgumentBufferDrawArgumentsBindPoint: u64 = 4;
-pub const kIRArgumentBufferUniformsBindPoint: u64 = 5;
-pub const kIRVertexBufferBindPoint: u64 = 6;
-pub const kIRStageInAttributeStartIndex: u64 = 11;
-pub const kIRIndirectTriangleIntersectionFunctionName: &[u8; 51] =
-    b"irconverter.wrapper.intersection.function.triangle\0";
-pub const kIRIndirectProceduralIntersectionFunctionName: &[u8; 53] =
-    b"irconverter.wrapper.intersection.function.procedural\0";
-pub const kIRTrianglePassthroughGeometryShader: &[u8; 47] =
-    b"irconverter_domain_shader_triangle_passthrough\0";
-pub const kIRLinePassthroughGeometryShader: &[u8; 43] =
-    b"irconverter_domain_shader_line_passthrough\0";
-pub const kIRPointPassthroughGeometryShader: &[u8; 44] =
-    b"irconverter_domain_shader_point_passthrough\0";
-pub const kIRNonIndexedDraw: u16 = 0;
-pub const kIRFunctionGroupRayGeneration: &[u8; 7] = b"rayGen\0";
-pub const kIRFunctionGroupClosestHit: &[u8; 11] = b"closestHit\0";
-pub const kIRFunctionGroupMiss: &[u8; 5] = b"miss\0";
-pub const kIRBufSizeOffset: u64 = 0;
-pub const kIRBufSizeMask: u64 = 4294967295;
-pub const kIRTexViewOffset: u64 = 32;
-pub const kIRTexViewMask: u64 = 255;
-pub const kIRTypedBufferOffset: u64 = 63;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union IRRuntimeFunctionConstantValue {
+    pub u_1: IRRuntimeFunctionConstantValue_u,
+    pub u_2: IRRuntimeFunctionConstantValue__bindgen_ty_2,
+    pub u_3: IRRuntimeFunctionConstantValue__bindgen_ty_3,
+    pub u_4: IRRuntimeFunctionConstantValue__bindgen_ty_4,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue_u {
+    pub i0: i32,
+    pub i1: i32,
+    pub i2: i32,
+    pub i3: i32,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue__bindgen_ty_2 {
+    pub s0: i16,
+    pub s1: i16,
+    pub s2: i16,
+    pub s3: i16,
+    pub s4: i16,
+    pub s5: i16,
+    pub s6: i16,
+    pub s7: i16,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue__bindgen_ty_3 {
+    pub l0: i64,
+    pub l1: i64,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue__bindgen_ty_4 {
+    pub f0: f32,
+    pub f1: f32,
+    pub f2: f32,
+    pub f3: f32,
+}
+impl Default for IRRuntimeFunctionConstantValue {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}

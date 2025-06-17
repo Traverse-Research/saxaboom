@@ -19,9 +19,9 @@
 #ifndef IRVERSION_H
 #define IRVERSION_H
 
-#define IR_VERSION_MAJOR 2
-#define IR_VERSION_MINOR 1
-#define IR_VERSION_PATCH 0
+#define IR_VERSION_MAJOR 3
+#define IR_VERSION_MINOR 0
+#define IR_VERSION_PATCH 5
 
 #define IR_SUPPORTS_VERSION(major, minor, patch) \
     ((major < IR_VERSION_MAJOR) || \
