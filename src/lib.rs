@@ -97,6 +97,53 @@ impl MetalIrConverter {
             funcs: self.funcs.clone(),
         })
     }
+
+    /// Deserializes a root signature descriptor from either a DXIL container or a raw versioned
+    /// root signature blob.
+    #[doc(alias = "IRVersionedRootSignatureDescriptorCreateFromBlob")]
+    pub fn create_root_signature_descriptor_from_blob(
+        &self,
+        blob: &[u8],
+    ) -> Result<IRVersionedRootSignatureDescriptor, RootSignatureDescriptorError> {
+        let blob_size = blob
+            .len()
+            .try_into()
+            .expect("Root signature blob does not fit in a u32");
+        let mut error = std::ptr::null_mut();
+
+        let me = NonNull::new(unsafe {
+            self.funcs.IRVersionedRootSignatureDescriptorCreateFromBlob(
+                blob.as_ptr(),
+                blob_size,
+                &mut error,
+            )
+        });
+
+        if let Some(error) = NonNull::new(error) {
+            let error = unsafe { IRError::from_ptr(error, self.funcs.clone()) };
+            return Err(RootSignatureDescriptorError(error));
+        }
+
+        let me = me.expect(
+            "IRVersionedRootSignatureDescriptorCreateFromBlob should not return NULL without error",
+        );
+        Ok(IRVersionedRootSignatureDescriptor {
+            me,
+            funcs: self.funcs.clone(),
+        })
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationCreate")]
+    pub fn create_ray_tracing_pipeline_configuration(&self) -> IRRayTracingPipelineConfiguration {
+        let configuration =
+            NonNull::new(unsafe { self.funcs.IRRayTracingPipelineConfigurationCreate() })
+                .expect("Failed to create IRRayTracingPipelineConfiguration");
+
+        IRRayTracingPipelineConfiguration {
+            me: configuration,
+            funcs: self.funcs.clone(),
+        }
+    }
 }
 
 macro_rules! versioned_info {
@@ -387,6 +434,34 @@ impl Drop for IRRootSignature {
 #[error("IRRootSignature creation failed: {0:?}")]
 pub struct RootSignatureError(IRError);
 
+pub struct IRVersionedRootSignatureDescriptor {
+    me: NonNull<ffi::IRVersionedRootSignatureDescriptor>,
+    funcs: Arc<bindings::metal_irconverter>,
+}
+
+impl Deref for IRVersionedRootSignatureDescriptor {
+    type Target = ffi::IRVersionedRootSignatureDescriptor;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.me.as_ref() }
+    }
+}
+
+impl Drop for IRVersionedRootSignatureDescriptor {
+    #[doc(alias = "IRVersionedRootSignatureDescriptorRelease")]
+    fn drop(&mut self) {
+        unsafe {
+            self.funcs
+                .IRVersionedRootSignatureDescriptorRelease(self.me.as_ptr())
+        }
+    }
+}
+
+/// Captures errors returned by [`MetalIrConverter::create_root_signature_descriptor_from_blob()`].
+#[derive(Error, Debug)]
+#[error("IRVersionedRootSignatureDescriptor deserialization failed: {0:?}")]
+pub struct RootSignatureDescriptorError(IRError);
+
 impl IRRootSignature {
     #[doc(alias(
         "IRRootSignatureGetResourceCount",
@@ -403,6 +478,126 @@ impl IRRootSignature {
             resource_locations.set_len(n_resources)
         };
         resource_locations
+    }
+}
+
+pub struct IRRayTracingPipelineConfiguration {
+    me: NonNull<ffi::IRRayTracingPipelineConfiguration>,
+    funcs: Arc<bindings::metal_irconverter>,
+}
+
+impl Drop for IRRayTracingPipelineConfiguration {
+    #[doc(alias = "IRRayTracingPipelineConfigurationDestroy")]
+    fn drop(&mut self) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationDestroy(self.me.as_ptr())
+        }
+    }
+}
+
+impl IRRayTracingPipelineConfiguration {
+    #[doc(alias = "IRRayTracingPipelineConfigurationSetMaxAttributeSizeInBytes")]
+    pub fn set_max_attribute_size_in_bytes(&mut self, max_attribute_size_in_bytes: u32) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationSetMaxAttributeSizeInBytes(
+                    self.me.as_ptr(),
+                    max_attribute_size_in_bytes,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationSetPipelineFlags")]
+    pub fn set_pipeline_flags(
+        &mut self,
+        raytracing_pipeline_flags: ffi::IRRaytracingPipelineFlags,
+    ) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationSetPipelineFlags(
+                    self.me.as_ptr(),
+                    raytracing_pipeline_flags,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationSetIntrinsicMasks")]
+    pub fn set_intrinsic_masks(&mut self, chs: u64, miss: u64, any_hit: u64, callable_args: u64) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationSetIntrinsicMasks(
+                    self.me.as_ptr(),
+                    chs,
+                    miss,
+                    any_hit,
+                    callable_args,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationSetMaxRecursiveDepth")]
+    pub fn set_max_recursive_depth(&mut self, max_recursive_depth: i32) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationSetMaxRecursiveDepth(
+                    self.me.as_ptr(),
+                    max_recursive_depth,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationSetRayGenerationCompilationMode")]
+    pub fn set_ray_generation_compilation_mode(
+        &mut self,
+        ray_gen_mode: ffi::IRRayGenerationCompilationMode,
+    ) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationSetRayGenerationCompilationMode(
+                    self.me.as_ptr(),
+                    ray_gen_mode,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationSetIntersectionFunctionCompilationMode")]
+    pub fn set_intersection_function_compilation_mode(
+        &mut self,
+        intersection_function_mode: ffi::IRIntersectionFunctionCompilationMode,
+    ) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationSetIntersectionFunctionCompilationMode(
+                    self.me.as_ptr(),
+                    intersection_function_mode,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationEnableIntersectionFunctionGroups")]
+    pub fn enable_intersection_function_groups(
+        &mut self,
+        enable_intersection_function_groups: bool,
+    ) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationEnableIntersectionFunctionGroups(
+                    self.me.as_ptr(),
+                    enable_intersection_function_groups,
+                )
+        }
+    }
+
+    #[doc(alias = "IRRayTracingPipelineConfigurationEnableDirectStateAccess")]
+    pub fn enable_direct_state_access(&mut self, enable_direct_state_access: bool) {
+        unsafe {
+            self.funcs
+                .IRRayTracingPipelineConfigurationEnableDirectStateAccess(
+                    self.me.as_ptr(),
+                    enable_direct_state_access,
+                )
+        }
     }
 }
 
@@ -523,6 +718,7 @@ impl IRCompiler {
     }
 
     #[doc(alias = "IRCompilerSetRayTracingPipelineArguments")]
+    #[deprecated = "use `set_ray_tracing_pipeline_configuration()` instead"]
     #[allow(clippy::too_many_arguments)]
     pub fn set_ray_tracing_pipeline_arguments(
         &mut self,
@@ -548,6 +744,19 @@ impl IRCompiler {
                 max_recursive_depth,
                 ray_generation_compilation_mode,
                 intersection_function_compilation_mode,
+            )
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetRayTracingPipelineConfiguration")]
+    pub fn set_ray_tracing_pipeline_configuration(
+        &mut self,
+        configuration: &IRRayTracingPipelineConfiguration,
+    ) {
+        unsafe {
+            self.funcs.IRCompilerSetRayTracingPipelineConfiguration(
+                self.me.as_ptr(),
+                configuration.me.as_ptr(),
             )
         }
     }
@@ -603,6 +812,14 @@ impl IRCompiler {
         unsafe {
             self.funcs
                 .IRCompilerSetIntRTMask(self.me.as_ptr(), int_rt_mask)
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetSampleMask")]
+    pub fn set_sample_mask(&mut self, sample_mask: u32) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetSampleMask(self.me.as_ptr(), sample_mask)
         }
     }
 
@@ -684,6 +901,22 @@ impl IRCompiler {
                 operating_system,
                 version.as_ptr(),
             )
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetFunctionConstantResourceSpace")]
+    pub fn set_function_constant_resource_space(&mut self, space_value: u32) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetFunctionConstantResourceSpace(self.me.as_ptr(), space_value)
+        }
+    }
+
+    #[doc(alias = "IRCompilerSetFramebufferFetchResourceSpace")]
+    pub fn set_framebuffer_fetch_resource_space(&mut self, space_value: u32) {
+        unsafe {
+            self.funcs
+                .IRCompilerSetFramebufferFetchResourceSpace(self.me.as_ptr(), space_value)
         }
     }
 
