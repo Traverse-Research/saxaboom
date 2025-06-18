@@ -30,7 +30,7 @@ typedef MTL::Buffer*                        buffer_t;
 typedef MTL::SamplerState*                  sampler_t;
 typedef MTL::RenderCommandEncoder*          renderencoder_t;
 typedef MTL::PrimitiveType                  primitivetype_t;
-typedef MTL::FunctionConstantValues*        functionconstant_t;
+typedef MTL::FunctionConstantValues*        functionconstantvalues_t;
 typedef MTL::IndexType                      indextype_t;
 typedef MTL::Size                           mtlsize_t;
 typedef MTL::RenderPipelineState*           renderpipelinestate_t;
@@ -47,7 +47,7 @@ typedef id<MTLBuffer>                       buffer_t;
 typedef id<MTLSamplerState>                 sampler_t;
 typedef id<MTLRenderCommandEncoder>         renderencoder_t;
 typedef MTLPrimitiveType                    primitivetype_t;
-typedef MTLFunctionConstantValues*          functionconstant_t;
+typedef MTLFunctionConstantValues*          functionconstantvalues_t;
 typedef MTLIndexType                        indextype_t;
 typedef MTLSize                             mtlsize_t;
 typedef id<MTLRenderPipelineState>          renderpipelinestate_t;
@@ -111,6 +111,7 @@ typedef enum IRRuntimePrimitiveType
     IRRuntimePrimitiveTypeTriangleStrip   = 4,
     IRRuntimePrimitiveTypeLineWithAdj     = 5,
     IRRuntimePrimitiveTypeTriangleWithAdj = 6,
+    IRRuntimePrimitiveTypeLineStripWithAdj = 7,
     IRRuntimePrimitiveType1ControlPointPatchlist = IRRuntimePrimitiveTypeTriangle,
     IRRuntimePrimitiveType2ControlPointPatchlist = IRRuntimePrimitiveTypeTriangle,
     IRRuntimePrimitiveType3ControlPointPatchlist = IRRuntimePrimitiveTypeTriangle,
@@ -256,8 +257,14 @@ typedef struct IRRuntimeDrawInfo
     uint64_t indexBuffer; // position aligned to 8 bytes
 } IRRuntimeDrawInfo;
 
-
-
+typedef union IRRuntimeFunctionConstantValue
+{
+    struct { int32_t i0, i1, i2, i3; };
+    struct { int16_t s0, s1, s2, s3, s4, s5, s6, s7; };
+    struct { int64_t l0, l1; };
+    struct { float f0, f1, f2, f3; };
+} IRRuntimeFunctionConstantValue;
+    
 /**
  * Create a BufferView instance representing an append/consume buffer.
  * Append/consume buffers provide storage and an atomic insert/remove operation. This function takes an
@@ -518,6 +525,14 @@ renderpipelinestate_t IRRuntimeNewGeometryEmulationPipeline(device_t device,
 renderpipelinestate_t IRRuntimeNewGeometryTessellationEmulationPipeline(device_t device,
                                                                         const IRGeometryTessellationEmulationPipelineDescriptor* descriptor,
                                                                         nserror_t* error) API_AVAILABLE(macosx(14), ios(17));
+        
+/**
+ * Sets a value for a function constant at a specific index.
+ * @param values the target function constant values object
+ * @param index the index of the function constant (must be between 0 and 65535)
+ * @param value the constant value
+ */
+void IRRuntimeSetFunctionConstantValue(functionconstantvalues_t values, uint16_t index, IRRuntimeFunctionConstantValue *value);
 
 const uint64_t kIRArgumentBufferBindPoint                   = 2;
 const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
@@ -804,6 +819,7 @@ static uint32_t IRRuntimePrimitiveTypeVertexCount(IRRuntimePrimitiveType primiti
         case IRRuntimePrimitiveTypeLineWithAdj:     return 4; break;
         case IRRuntimePrimitiveTypeTriangleStrip:   return 3; break;
         case IRRuntimePrimitiveTypeLineStrip:       return 2; break;
+        case IRRuntimePrimitiveTypeLineStripWithAdj:return 4; break;
         default: return 0;
     }
     return 0;
@@ -821,6 +837,7 @@ static uint32_t IRRuntimePrimitiveTypeVertexOverlap(IRRuntimePrimitiveType primi
         case IRRuntimePrimitiveTypeLineWithAdj:     return 0; break;
         case IRRuntimePrimitiveTypeTriangleStrip:   return 2; break;
         case IRRuntimePrimitiveTypeLineStrip:       return 1; break;
+        case IRRuntimePrimitiveTypeLineStripWithAdj:return 3; break;
         default: return 0;
     }
     return 0;
@@ -869,10 +886,10 @@ static mtlsize_t IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulat
                                                                                   uint32_t instanceCount)
 {
     uint32_t nonProvokingVertices = 0;
-    if (primitiveType == (uint32_t)IRRuntimePrimitiveTypeLineStrip || primitiveType == (uint32_t)IRRuntimePrimitiveTypeTriangleStrip)
+    if (primitiveType == (uint32_t)IRRuntimePrimitiveTypeLineStrip || primitiveType == (uint32_t)IRRuntimePrimitiveTypeTriangleStrip || primitiveType == (uint32_t)IRRuntimePrimitiveTypeLineStripWithAdj)
     {
         // For strips, last k vertices aren't able to spawn a full primitive.
-        nonProvokingVertices = (primitiveType == (uint32_t)IRRuntimePrimitiveTypeTriangleStrip) ? 2 : 1;
+        nonProvokingVertices = IRRuntimePrimitiveTypeVertexOverlap(primitiveType);
     }
     
     mtlsize_t siz;
@@ -1115,14 +1132,7 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
         .startInstanceLocation = baseInstance
     };
     
-    uint32_t threadgroupMem = 16;
-    uint32_t prefixSumMem = 16;
-    
-    threadgroupMem = tessellationPipelineConfig.vsOutputSizeInBytes *
-                        tessellationPipelineConfig.hsInputControlPointCount *
-                                    tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup;
-    
-    prefixSumMem = 15360 - (32 * 4);
+    uint32_t threadgroupMem = 15360;
     
 #ifdef IR_RUNTIME_METALCPP
     drawInfo.indexBuffer = indexBuffer->gpuAddress();
@@ -1133,7 +1143,6 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
     enc->setMeshBytes(&drawParams,              sizeof(IRRuntimeDrawParams),       kIRArgumentBufferDrawArgumentsBindPoint);
     
     enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
-    enc->setObjectThreadgroupMemoryLength(prefixSumMem, 1);
 
     enc->drawMeshThreadgroups(objectThreadgroupCount,
                               MTL::Size::Make(objectThreadgroupSize, 1, 1),
@@ -1148,7 +1157,6 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
     [enc setMeshBytes:&drawParams                length:sizeof(IRRuntimeDrawParams)       atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
 
     [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
-    [enc setObjectThreadgroupMemoryLength:prefixSumMem atIndex:1];
     
     [enc drawMeshThreadgroups:objectThreadgroupCount
   threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
@@ -1199,14 +1207,7 @@ void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
         
     };
     
-    uint32_t threadgroupMem = 16;
-    uint32_t prefixSumMem = 16;
-    
-    threadgroupMem = tessellationPipelineConfig.vsOutputSizeInBytes *
-                        tessellationPipelineConfig.hsInputControlPointCount *
-                                    tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup;
-    
-    prefixSumMem = 15360 - (32 * 4);
+    uint32_t threadgroupMem = 15360;
     
 #ifdef IR_RUNTIME_METALCPP
     
@@ -1216,7 +1217,6 @@ void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
     enc->setMeshBytes(&drawParams,              sizeof(IRRuntimeDrawParams),       kIRArgumentBufferDrawArgumentsBindPoint);
     
     enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
-    enc->setObjectThreadgroupMemoryLength(prefixSumMem, 1);
 
     enc->drawMeshThreadgroups(objectThreadgroupCount,
                               MTL::Size::Make(objectThreadgroupSize, 1, 1),
@@ -1229,7 +1229,6 @@ void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
     [enc setMeshBytes:&drawParams                length:sizeof(IRRuntimeDrawParams)       atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
 
     [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
-    [enc setObjectThreadgroupMemoryLength:prefixSumMem atIndex:1];
     
     [enc drawMeshThreadgroups:objectThreadgroupCount
   threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
@@ -1435,6 +1434,16 @@ exit_vertex_function_error:
     return pRenderPipelineState;
     
 #endif // IR_RUNTIME_METALCPP
+}
+
+IR_INLINE
+void IRRuntimeSetFunctionConstantValue(functionconstantvalues_t values, uint16_t index, IRRuntimeFunctionConstantValue *value)
+{
+#ifdef IR_RUNTIME_METALCPP
+    values->setConstantValue(value, MTL::DataTypeUInt4, index);
+#else
+    [values setConstantValue:value type:MTLDataTypeUInt4 atIndex:index];
+#endif
 }
 
 IR_INLINE
