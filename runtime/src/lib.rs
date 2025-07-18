@@ -23,7 +23,7 @@ use objc2_metal::{
     MTLBuffer, MTLIndexType, MTLPrimitiveType, MTLRenderCommandEncoder, MTLSamplerState, MTLTexture,
 };
 
-/// Rust version of `IRBufferView` using [`metal`] types.
+/// Rust version of `IRBufferView` using [`objc2_metal`] types.
 #[doc(alias = "IRBufferView")]
 pub struct BufferView<'a> {
     pub buffer: &'a ProtocolObject<dyn MTLBuffer>,
@@ -36,6 +36,11 @@ pub struct BufferView<'a> {
 
 impl ffi::IRDescriptorTableEntry {
     /// Encode a buffer descriptor.
+    ///
+    /// When creating the `metadata` argument via [`Self::buffer_metadata()`], note that it does not
+    /// encode [`BufferView::buffer_offset`], which must be added to the `gpu_address` argument
+    /// manually. This function cannot reference a texture buffer view; use [`Self::buffer_view()`]
+    /// for buffers that are also accessed as a typed texture buffer.
     ///
     /// This function is a port of the `IRDescriptorTableSetBuffer` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
@@ -55,6 +60,8 @@ impl ffi::IRDescriptorTableEntry {
     }
 
     /// Encode a buffer view descriptor.
+    ///
+    /// Use this function to encode a buffer that may also include a reference as a texture from a shader.
     ///
     /// This function is a port of the `IRDescriptorTableSetBufferView` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
@@ -111,6 +118,14 @@ impl ffi::IRDescriptorTableEntry {
     }
 
     /// Get the metadata value for a buffer view.
+    ///
+    /// Be warned that this does **not** encode [`BufferView::buffer_offset`].  If you
+    /// are manually passing this metadata down into [`Self::buffer()`] (rather than using
+    /// [`Self::buffer_view()`]), the offset must be added to the `gpu_address` argument.
+    ///
+    /// Only the low 32 bits of [`BufferView::buffer_size`] and the low 8 bits of
+    /// [`BufferView::texture_view_offset_in_elements`] are encoded; larger values are silently
+    /// truncated.
     ///
     /// This function is a port of the `IRDescriptorTableGetBufferMetadata` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
