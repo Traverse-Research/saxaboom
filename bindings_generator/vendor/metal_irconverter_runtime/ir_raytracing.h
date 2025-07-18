@@ -40,14 +40,31 @@
     #define IR_DEVICE_PTR(ptr)                uint64_t
 #endif // __METAL_VERSION__
 
+#ifndef IR_DEPRECATED
+#ifdef _MSC_VER
+#define IR_DEPRECATED(message) __declspec(deprecated(message))
+#else
+#define IR_DEPRECATED(message) __attribute__((deprecated(message)))
+#endif // _MSC_VER
+#endif
+            
 typedef struct IRShaderIdentifier
 {
-    // For HitGroups, index into visible function table containing a converted
-    // intersection function.
+    // For HitGroups:
+    // If compilation mode is IRIntersectionFunctionCompilationIntersectionFunctionBufferFunction,
+    //     intersection function handle resource ID of converted intersection or any-hit shader.
+    // If compilation mode is IRIntersectionFunctionCompilationVisibleFunction,
+    //     index into visible function table containing converted intersection or any-hit shader.
+    // If compilation mode is IRIntersectionFunctionCompilationIntersectionFunction,
+    //     index into intersection function table containing converted intersection or any-hit shader.
     uint64_t intersectionShaderHandle;
-    // For ray generation, miss, callable shaders, index into visible function
-    // table containing the translated function. For HitGroups, index to the
-    // converted closest-hit shader.
+    // For ray-generation shaders:
+    // If compilation mode is IRRayGenerationCompilationVisibleFunction,
+    //     index into visible function table containing the converted shader.
+    // For miss, callable shaders:
+    //     index into visible function table containing the converted shader.
+    // For HitGroups:
+    //     index to the converted closest-hit shader.
     uint64_t shaderHandle;
     // GPU address to a buffer containing static samplers for shader records
     uint64_t localRootSignatureSamplersBuffer;
@@ -177,11 +194,19 @@ void IRDescriptorTableSetAccelerationStructure(IRDescriptorTableEntry* entry, ui
  * @param instanceContributions array of instance contributions to hit group index.
  * @param instanceCount number of elements in the instanceContributions array.
  */
+IR_DEPRECATED("use IRRaytracingSetAccelerationStructure variant with instanceContributionArrayBufferGPUAddress.")
 void IRRaytracingSetAccelerationStructure(uint8_t* headerBuffer,
                                           resourceid_t accelerationStructure,
                                           uint8_t* instanceContributionArrayBuffer,
                                           const uint32_t* instanceContributions,
                                           uinteger_t instanceCount) IR_OVERLOADABLE;
+            
+void IRRaytracingSetAccelerationStructure(uint8_t* headerBuffer,
+                                          resourceid_t accelerationStructure,
+                                          uint8_t* instanceContributionArrayBuffer,
+                                          uint64_t instanceContributionArrayBufferGPUAddress,
+                                          const uint32_t* instanceContributions,
+                                          uinteger_t instanceContributionsCount) IR_OVERLOADABLE;
 
 /**
  * Initialize a shader identifier to reference a ray generation, closest-hit, any-hit, miss, or callable shader without a
@@ -236,9 +261,26 @@ void IRRaytracingSetAccelerationStructure(uint8_t* headerBuffer,
 {
     IRRaytracingAccelerationStructureGPUHeader* header = (IRRaytracingAccelerationStructureGPUHeader*)headerBuffer;
     header->accelerationStructureID = accelerationStructure._impl;
-    header->addressOfInstanceContributions = (uint64_t)instanceContributionArrayBuffer;
     uint32_t* bufferInstanceContributions = (uint32_t*)instanceContributionArrayBuffer;
     for (uinteger_t i = 0; i < instanceCount; ++i)
+    {
+        bufferInstanceContributions[i] = instanceContributions[i];
+    }
+}
+
+IR_INLINE
+void IRRaytracingSetAccelerationStructure(uint8_t* headerBuffer,
+                                          resourceid_t accelerationStructure,
+                                          uint8_t* instanceContributionArrayBuffer,
+                                          uint64_t instanceContributionArrayBufferGPUAddress,
+                                          const uint32_t* instanceContributions,
+                                          uinteger_t instanceContributionsCount) IR_OVERLOADABLE
+{
+    IRRaytracingAccelerationStructureGPUHeader* header = (IRRaytracingAccelerationStructureGPUHeader*)headerBuffer;
+    header->accelerationStructureID = accelerationStructure._impl;
+    header->addressOfInstanceContributions = instanceContributionArrayBufferGPUAddress;
+    uint32_t* bufferInstanceContributions = (uint32_t*)instanceContributionArrayBuffer;
+    for (uinteger_t i = 0; i < instanceContributionsCount; ++i)
     {
         bufferInstanceContributions[i] = instanceContributions[i];
     }
