@@ -21,3 +21,7 @@ members = [
 [dependencies]
 libloading = "0.8"
 thiserror = "2.0"
+
+[patch.crates-io]
+objc2 = { git = "https://github.com/Traverse-Research/objc2.git", rev = "209eb220" }
+objc2-metal = { git = "https://github.com/Traverse-Research/objc2.git", rev = "209eb220" }

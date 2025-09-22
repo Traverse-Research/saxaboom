@@ -20,7 +20,8 @@ use std::ptr::NonNull;
 
 use objc2::runtime::ProtocolObject;
 use objc2_metal::{
-    MTLBuffer, MTLIndexType, MTLPrimitiveType, MTLRenderCommandEncoder, MTLSamplerState, MTLTexture,
+    MTL4ArgumentTable, MTL4RenderCommandEncoder, MTLBuffer, MTLGPUAddress, MTLIndexType,
+    MTLPrimitiveType, MTLRenderCommandEncoder, MTLSamplerState, MTLTexture,
 };
 
 /// Rust version of `IRBufferView` using [`metal`] types.
@@ -124,6 +125,12 @@ impl ffi::IRDescriptorTableEntry {
     }
 }
 
+/// Place these bytes in a buffer and return the GPU pointer to it, such that they stay alive
+/// and unmodified until `encoder` completes on the GPU.
+// TODO: We could also pass the binding index and let the user "set" the right
+// binding directly on the `MTL4ArgumentTable` that they have bound for the `Vertex` stage.
+pub type PushBytes = dyn FnMut(&[u8]) -> MTLGPUAddress;
+
 #[doc(alias = "IRRuntimeDrawPrimitives")]
 pub fn draw_primitives(
     encoder: &ProtocolObject<dyn MTLRenderCommandEncoder>,
@@ -153,6 +160,51 @@ pub fn draw_primitives(
         encoder.setVertexBytes_length_atIndex(
             NonNull::new(&raw mut non_indexed_draw).unwrap().cast(),
             size_of_val(&non_indexed_draw),
+            ffi::kIRArgumentBufferUniformsBindPoint as usize,
+        );
+        encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
+            primitive_type,
+            vertex_start,
+            vertex_count,
+            instance_count,
+            base_instance,
+        );
+    }
+}
+
+#[doc(alias = "IRRuntimeDrawPrimitives")]
+pub fn mtl4_draw_primitives(
+    encoder: &ProtocolObject<dyn MTL4RenderCommandEncoder>,
+    argument_table: &ProtocolObject<dyn MTL4ArgumentTable>,
+    push_bytes: &mut PushBytes,
+    primitive_type: MTLPrimitiveType,
+    vertex_start: usize,
+    vertex_count: usize,
+    instance_count: usize,
+    base_instance: usize,
+) {
+    let mut dp = ffi::IRRuntimeDrawParams {
+        u_1: ffi::IRRuntimeDrawParams_u {
+            draw: ffi::IRRuntimeDrawArgument {
+                vertexCountPerInstance: vertex_count as u32,
+                instanceCount: instance_count as u32,
+                startVertexLocation: vertex_start as u32,
+                startInstanceLocation: base_instance as u32,
+            },
+        },
+    };
+    unsafe {
+        argument_table.setAddress_atIndex(
+            push_bytes(&dp),
+            // NonNull::new(&raw mut dp).unwrap().cast(),
+            // size_of_val(&dp),
+            ffi::kIRArgumentBufferDrawArgumentsBindPoint as usize,
+        );
+        let mut non_indexed_draw = ffi::kIRNonIndexedDraw;
+        argument_table.setAddress_atIndex(
+            push_bytes(&non_indexed_draw),
+            // NonNull::new(&raw mut non_indexed_draw).unwrap().cast(),
+            // size_of_val(&non_indexed_draw),
             ffi::kIRArgumentBufferUniformsBindPoint as usize,
         );
         encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
@@ -212,6 +264,62 @@ pub fn draw_indexed_primitives(
             index_type,
             index_buffer,
             index_buffer_offset,
+            instance_count,
+            base_vertex,
+            base_instance,
+        );
+    }
+}
+
+#[doc(alias = "IRRuntimeDrawIndexedPrimitives")]
+#[expect(clippy::too_many_arguments)]
+pub fn mtl4_draw_indexed_primitives(
+    encoder: &ProtocolObject<dyn MTL4RenderCommandEncoder>,
+    argument_table: &ProtocolObject<dyn MTL4ArgumentTable>,
+    push_bytes: &mut PushBytes,
+    primitive_type: MTLPrimitiveType,
+    index_count: usize,
+    index_type: MTLIndexType,
+    index_buffer: &ProtocolObject<dyn MTLBuffer>,
+    index_buffer_offset: usize,
+    instance_count: usize,
+    base_vertex: isize,
+    base_instance: usize,
+) {
+    // Assert that `argument_table` is bound to `encoder` for at least the vertex stage?
+
+    let mut dp = ffi::IRRuntimeDrawParams {
+        u_1: ffi::IRRuntimeDrawParams_u {
+            drawIndexed: ffi::IRRuntimeDrawIndexedArgument {
+                indexCountPerInstance: index_count as u32,
+                instanceCount: instance_count as u32,
+                startIndexLocation: index_buffer_offset as u32,
+                baseVertexLocation: base_vertex as i32,
+                startInstanceLocation: base_instance as u32,
+            },
+        },
+    };
+    let mut ir_index_type = metal_index_to_ir_index(index_type);
+    unsafe {
+        argument_table.setAddress_atIndex(
+            push_bytes(&dp), // TODO: bytemuck?
+            // NonNull::new(&raw mut dp).unwrap().cast(),
+            // size_of_val(&dp),
+            ffi::kIRArgumentBufferDrawArgumentsBindPoint as usize,
+        );
+        argument_table.setAddress_atIndex(
+            push_bytes(&ir_index_type),
+            // NonNull::new(&raw mut ir_index_type).unwrap().cast(),
+            // size_of_val(&ir_index_type),
+            ffi::kIRArgumentBufferUniformsBindPoint as usize,
+        );
+        encoder.drawIndexedPrimitives_indexCount_indexType_indexBuffer_indexBufferLength_instanceCount_baseVertex_baseInstance(
+            primitive_type,
+            index_count,
+            index_type,
+            index_buffer.gpuAddress()+
+            index_buffer_offset as u64,
+        index_buffer.length() - index_buffer_offset, // TODO: instance_count times size!  This range is only used as validation
             instance_count,
             base_vertex,
             base_instance,
