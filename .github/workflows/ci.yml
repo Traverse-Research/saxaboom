@@ -10,7 +10,7 @@ jobs:
     # target.
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Cargo fmt
         run: cargo fmt --all -- --check
       - name: Cargo clippy
@@ -24,7 +24,7 @@ jobs:
     name: Generate Rust crate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Clean
         run: rm src/bindings.rs
       - name: Generate bindings
