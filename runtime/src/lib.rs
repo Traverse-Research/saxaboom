@@ -63,7 +63,7 @@ impl ffi::IRDescriptorTableEntry {
         Self {
             gpuVA: buffer_view.buffer.gpuAddress() + buffer_view.buffer_offset,
             textureViewID: match buffer_view.texture_buffer_view {
-                Some(texture) => unsafe { texture.gpuResourceID() }.to_raw(),
+                Some(texture) => texture.gpuResourceID().to_raw(),
                 None => 0,
             },
             metadata: Self::buffer_metadata(buffer_view),
@@ -79,7 +79,7 @@ impl ffi::IRDescriptorTableEntry {
         const METADATA: u32 = 0; // According to the current docs, the metadata must be 0
         Self {
             gpuVA: 0,
-            textureViewID: unsafe { argument.gpuResourceID() }.to_raw(),
+            textureViewID: argument.gpuResourceID().to_raw(),
             metadata: min_lod_clamp.to_bits() as u64 | ((METADATA as u64) << 32),
         }
     }
@@ -91,7 +91,7 @@ impl ffi::IRDescriptorTableEntry {
     #[doc(alias = "IRDescriptorTableSetSampler")]
     pub fn sampler(argument: &ProtocolObject<dyn MTLSamplerState>, lod_bias: f32) -> Self {
         Self {
-            gpuVA: unsafe { argument.gpuResourceID() }.to_raw(),
+            gpuVA: argument.gpuResourceID().to_raw(),
             textureViewID: 0,
             metadata: lod_bias.to_bits() as u64,
         }
