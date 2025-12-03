@@ -140,13 +140,13 @@ where
         }
     }
 }
-pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct MTLDispatchThreadgroupsIndirectArguments {
     pub threadgroupsPerGrid: [u32; 3usize],
 }
 pub type resourceid_t = MTLResourceID;
+pub type uint = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct IRDescriptorTableEntry {
@@ -505,6 +505,7 @@ pub enum IRRuntimePrimitiveType {
     TriangleStrip = 4,
     LineWithAdj = 5,
     TriangleWithAdj = 6,
+    LineStripWithAdj = 7,
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -610,6 +611,57 @@ pub struct IRRuntimeDrawInfo {
     pub patchesPerObjectThreadgroup: u16,
     pub inputControlPointsPerPatch: u16,
     pub indexBuffer: u64,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union IRRuntimeFunctionConstantValue {
+    pub u_1: IRRuntimeFunctionConstantValue_u,
+    pub u_2: IRRuntimeFunctionConstantValue__bindgen_ty_2,
+    pub u_3: IRRuntimeFunctionConstantValue__bindgen_ty_3,
+    pub u_4: IRRuntimeFunctionConstantValue__bindgen_ty_4,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue_u {
+    pub i0: i32,
+    pub i1: i32,
+    pub i2: i32,
+    pub i3: i32,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue__bindgen_ty_2 {
+    pub s0: i16,
+    pub s1: i16,
+    pub s2: i16,
+    pub s3: i16,
+    pub s4: i16,
+    pub s5: i16,
+    pub s6: i16,
+    pub s7: i16,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue__bindgen_ty_3 {
+    pub l0: i64,
+    pub l1: i64,
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRuntimeFunctionConstantValue__bindgen_ty_4 {
+    pub f0: f32,
+    pub f1: f32,
+    pub f2: f32,
+    pub f3: f32,
+}
+impl Default for IRRuntimeFunctionConstantValue {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 pub const kIRArgumentBufferBindPoint: u64 = 2;
 pub const kIRArgumentBufferHullDomainBindPoint: u64 = 3;
