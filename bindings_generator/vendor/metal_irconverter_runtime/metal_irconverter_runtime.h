@@ -30,7 +30,7 @@ typedef MTL::Buffer*                        buffer_t;
 typedef MTL::SamplerState*                  sampler_t;
 typedef MTL::RenderCommandEncoder*          renderencoder_t;
 typedef MTL::PrimitiveType                  primitivetype_t;
-typedef MTL::FunctionConstantValues*        functionconstant_t;
+typedef MTL::FunctionConstantValues*        functionconstantvalues_t;
 typedef MTL::IndexType                      indextype_t;
 typedef MTL::Size                           mtlsize_t;
 typedef MTL::RenderPipelineState*           renderpipelinestate_t;
@@ -39,6 +39,10 @@ typedef MTL::MeshRenderPipelineDescriptor*  meshpipelinedescriptor_t;
 typedef MTL::Device*                        device_t;
 typedef MTL::ResourceID                     resourceid_t;
 typedef NS::UInteger                        uinteger_t;
+#ifdef IR_RUNTIME_METAL4
+typedef MTL4::RenderCommandEncoder*         mtl4renderencoder_t;
+typedef MTL4::ArgumentTable*                mtl4argumenttable_t;
+#endif
 #else
 typedef NSError*                            nserror_t;
 typedef NSString*                           nsstring_t;
@@ -47,7 +51,7 @@ typedef id<MTLBuffer>                       buffer_t;
 typedef id<MTLSamplerState>                 sampler_t;
 typedef id<MTLRenderCommandEncoder>         renderencoder_t;
 typedef MTLPrimitiveType                    primitivetype_t;
-typedef MTLFunctionConstantValues*          functionconstant_t;
+typedef MTLFunctionConstantValues*          functionconstantvalues_t;
 typedef MTLIndexType                        indextype_t;
 typedef MTLSize                             mtlsize_t;
 typedef id<MTLRenderPipelineState>          renderpipelinestate_t;
@@ -56,6 +60,10 @@ typedef MTLMeshRenderPipelineDescriptor*    meshpipelinedescriptor_t;
 typedef id<MTLDevice>                       device_t;
 typedef MTLResourceID                       resourceid_t;
 typedef NSUInteger                          uinteger_t;
+#ifdef IR_RUNTIME_METAL4
+typedef id<MTL4RenderCommandEncoder>        mtl4renderencoder_t;
+typedef id<MTL4ArgumentTable>               mtl4argumenttable_t;
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -72,6 +80,28 @@ extern "C" {
 #define IR_MIN(a,b) ( ((a) < (b)) ? (a) : (b) )
 #define IR_INLINE       __attribute__((always_inline))
 #define IR_OVERLOADABLE __attribute__((overloadable))
+
+extern const uint64_t kIRArgumentBufferBindPoint;
+extern const uint64_t kIRDescriptorHeapBindPoint;
+extern const uint64_t kIRSamplerHeapBindPoint;
+extern const uint64_t kIRArgumentBufferHullDomainBindPoint;
+extern const uint64_t kIRArgumentBufferDrawArgumentsBindPoint;
+extern const uint64_t kIRArgumentBufferUniformsBindPoint;
+extern const uint64_t kIRVertexBufferBindPoint;
+extern const uint64_t kIRStageInAttributeStartIndex;
+
+extern const char*    kIRIndirectTriangleIntersectionFunctionName;
+extern const char*    kIRIndirectProceduralIntersectionFunctionName;
+
+extern const char*    kIRTrianglePassthroughGeometryShader;
+extern const char*    kIRLinePassthroughGeometryShader;
+extern const char*    kIRPointPassthroughGeometryShader;
+
+extern const char*    kIRFunctionGroupRayGeneration;
+extern const char*    kIRFunctionGroupClosestHit;
+extern const char*    kIRFunctionGroupMiss;
+
+extern const uint16_t kIRNonIndexedDraw;
 
 typedef struct IRDescriptorTableEntry
 {
@@ -111,6 +141,7 @@ typedef enum IRRuntimePrimitiveType
     IRRuntimePrimitiveTypeTriangleStrip   = 4,
     IRRuntimePrimitiveTypeLineWithAdj     = 5,
     IRRuntimePrimitiveTypeTriangleWithAdj = 6,
+    IRRuntimePrimitiveTypeLineStripWithAdj = 7,
     IRRuntimePrimitiveType1ControlPointPatchlist = IRRuntimePrimitiveTypeTriangle,
     IRRuntimePrimitiveType2ControlPointPatchlist = IRRuntimePrimitiveTypeTriangle,
     IRRuntimePrimitiveType3ControlPointPatchlist = IRRuntimePrimitiveTypeTriangle,
@@ -256,8 +287,14 @@ typedef struct IRRuntimeDrawInfo
     uint64_t indexBuffer; // position aligned to 8 bytes
 } IRRuntimeDrawInfo;
 
-
-
+typedef union IRRuntimeFunctionConstantValue
+{
+    struct { int32_t i0, i1, i2, i3; };
+    struct { int16_t s0, s1, s2, s3, s4, s5, s6, s7; };
+    struct { int64_t l0, l1; };
+    struct { float f0, f1, f2, f3; };
+} IRRuntimeFunctionConstantValue;
+    
 /**
  * Create a BufferView instance representing an append/consume buffer.
  * Append/consume buffers provide storage and an atomic insert/remove operation. This function takes an
@@ -416,6 +453,16 @@ void IRRuntimeDrawIndexedPrimitives(renderencoder_t enc, primitivetype_t primiti
  * You need to bind your vertex arrays and strides before issuing this call.
  * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
  * You need to manually flag residency for all referenced vertex buffers and for the index buffer.
+ * @param enc the render command encoder
+ * @param primitiveType the primitive type to draw
+ * @param indexType the data type of the indices.
+ * @param indexBuffer a buffer that contains indices to the vertices.
+ * @param geometryPipelineConfig pipeline configuration from the geometry shader
+ * @param instanceCount the number of instances to draw
+ * @param indexCountPerInstance the index count
+ * @param startIndex the first index to draw.
+ * @param baseVertex the first vertex to draw.
+ * @param baseInstance the first instance to draw.
  */
 void IRRuntimeDrawIndexedPrimitivesGeometryEmulation(renderencoder_t enc,
                                                      IRRuntimePrimitiveType primitiveType,
@@ -433,6 +480,13 @@ void IRRuntimeDrawIndexedPrimitivesGeometryEmulation(renderencoder_t enc,
  * You need to bind your vertex arrays and strides before issuing this call.
  * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
  * You need to manually flag residency for all referenced vertex buffers.
+ * @param enc the render command encoder
+ * @param primitiveType the primitive type to draw
+ * @param geometryPipelineConfig pipeline configuration from the geometry shader
+ * @param instanceCount the number of instances to draw
+ * @param vertexCountPerInstance the vertex count
+ * @param baseVertex the first vertex to draw.
+ * @param baseInstance the first instance to draw.
  */
 void IRRuntimeDrawPrimitivesGeometryEmulation(renderencoder_t enc,
                                               IRRuntimePrimitiveType primitiveType,
@@ -443,10 +497,20 @@ void IRRuntimeDrawPrimitivesGeometryEmulation(renderencoder_t enc,
                                               uint32_t baseInstance);
 
 /**
- * * Draw indexed primitives using an emulated geometry/tessellation pipeline.
+ * Draw indexed primitives using an emulated geometry/tessellation pipeline.
  * You need to bind your vertex arrays and strides before issuing this call.
  * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
  * You need to manually flag residency for all referenced vertex buffers and for the index buffer.
+ * @param enc the render command encoder
+ * @param primitiveTopology the primitive topology
+ * @param indexType the data type of the indices.
+ * @param indexBuffer a buffer that contains indices to the vertices.
+ * @param tessellationPipelineConfig pipeline configuration from the tessellation shader
+ * @param instanceCount the number of instances to draw
+ * @param indexCountPerInstance the index count
+ * @param baseInstance the first instance to draw.
+ * @param baseVertex the first vertex to draw.
+ * @param startIndex the first index to draw.
  */
 void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
                                                       IRRuntimePrimitiveType primitiveTopology,
@@ -464,6 +528,13 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
  * You need to bind your vertex arrays and strides before issuing this call.
  * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
  * You need to manually flag residency for all referenced vertex buffers.
+ * @param enc the render command encoder
+ * @param primitiveTopology the primitive topology
+ * @param tessellationPipelineConfig pipeline configuration from the tessellation shader
+ * @param instanceCount the number of instances to draw
+ * @param vertexCountPerInstance the vertex count
+ * @param baseInstance the first instance to draw.
+ * @param baseVertex the first vertex to draw.
  */
 void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
                                                IRRuntimePrimitiveType primitiveTopology,
@@ -518,6 +589,145 @@ renderpipelinestate_t IRRuntimeNewGeometryEmulationPipeline(device_t device,
 renderpipelinestate_t IRRuntimeNewGeometryTessellationEmulationPipeline(device_t device,
                                                                         const IRGeometryTessellationEmulationPipelineDescriptor* descriptor,
                                                                         nserror_t* error) API_AVAILABLE(macosx(14), ios(17));
+        
+/**
+ * Sets a value for a function constant at a specific index.
+ * @param values the target function constant values object
+ * @param index the index of the function constant (must be between 0 and 65535)
+ * @param value the constant value
+ */
+void IRRuntimeSetFunctionConstantValue(functionconstantvalues_t values, uint16_t index, IRRuntimeFunctionConstantValue *value);
+
+#ifdef IR_RUNTIME_METAL4
+    
+/**
+ * Get the minimum required scratch buffer size required to encode metal shader converter semantic information for Metal 4 encoders.
+**/
+uint64_t IRRuntime4DrawGetScratchBufferSize(void);
+    
+/**
+ * Draw primitives using an emulated geometry pipeline.
+ * You need to bind your vertex arrays and strides before issuing this call.
+ * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
+ * You need to manually flag residency for all referenced vertex buffers.
+ * @param enc the Metal 4 render command encoder
+ * @param argTable the argument table - available for the object and mesh stages - to bind a scratch buffer on the encoder
+ * @param scratchBuffer the buffer to encode metal shader converter semantic information
+ * @param scratchBufferOffset the offset into the scratch buffer
+ * @param primitiveType the primitive type to draw
+ * @param geometryPipelineConfig pipeline configuration from the geometry shader
+ * @param instanceCount the number of instances to draw
+ * @param vertexCountPerInstance the vertex count
+ * @param baseVertex the first vertex to draw.
+ * @param baseInstance the first instance to draw.
+ */
+void IRRuntime4DrawPrimitivesGeometryEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                               buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                               IRRuntimePrimitiveType primitiveType,
+                                               IRRuntimeGeometryPipelineConfig geometryPipelineConfig,
+                                               uint32_t instanceCount,
+                                               uint32_t vertexCountPerInstance,
+                                               uint32_t baseVertex,
+                                               uint32_t baseInstance);
+
+/**
+ * Draw indexed primitives using an emulated geometry pipeline with a Metal 4 encoder.
+ * You need to bind your vertex arrays and strides before issuing this call.
+ * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
+ * You need to manually flag residency for all referenced vertex buffers and for the index buffer.
+ * @param enc the Metal 4 render command encoder
+ * @param argTable the argument table - available for the object and mesh stages - to bind a scratch buffer on the encoder
+ * @param scratchBuffer the buffer to encode metal shader converter semantic information
+ * @param scratchBufferOffset the offset into the scratch buffer
+ * @param primitiveType the primitive type to draw
+ * @param indexType the data type of the indices.
+ * @param indexBuffer a buffer that contains indices to the vertices.
+ * @param geometryPipelineConfig pipeline configuration from the geometry shader
+ * @param instanceCount the number of instances to draw
+ * @param indexCountPerInstance the index count
+ * @param startIndex the first index to draw.
+ * @param baseVertex the first vertex to draw.
+ * @param baseInstance the first instance to draw.
+ */
+void IRRuntime4DrawIndexedPrimitivesGeometryEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                      buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                      IRRuntimePrimitiveType primitiveType,
+                                                      indextype_t indexType,
+                                                      uint64_t indexBuffer,
+                                                      IRRuntimeGeometryPipelineConfig geometryPipelineConfig,
+                                                      uint32_t instanceCount,
+                                                      uint32_t indexCountPerInstance,
+                                                      uint32_t startIndex,
+                                                      int baseVertex,
+                                                      uint32_t baseInstance);
+
+/**
+ * Draw non-indexed primitives using an emulated geometry/tessellation pipeline on a Metal 4 encoder.
+ * You need to bind your vertex arrays and strides before issuing this call.
+ * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
+ * You need to manually flag residency for all referenced vertex buffers.
+ * The provided argument table must be available for both object and mesh stages on the encoder.
+ * @param enc the Metal 4 render command encoder
+ * @param argTable the argument table - available for the object and mesh stages - to bind a scratch buffer on the encoder
+ * @param scratchBuffer the buffer to encode metal shader converter semantic information
+ * @param scratchBufferOffset the offset into the scratch buffer
+ * @param primitiveTopology the primitive topology
+ * @param tessellationPipelineConfig pipeline configuration from the tessellation shader
+ * @param instanceCount the number of instances to draw
+ * @param vertexCountPerInstance the vertex count
+ * @param baseInstance the first instance to draw.
+ * @param baseVertex the first vertex to draw.
+ */
+void IRRuntime4DrawPatchesTessellationEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                IRRuntimePrimitiveType primitiveTopology,
+                                                IRRuntimeTessellationPipelineConfig tessellationPipelineConfig,
+                                                uint32_t instanceCount,
+                                                uint32_t vertexCountPerInstance,
+                                                uint32_t baseInstance,
+                                                uint32_t baseVertex);
+
+/**
+ * Draw indexed primitives using an emulated geometry/tessellation pipeline on a Metal 4 encoder.
+ * You need to bind your vertex arrays and strides before issuing this call.
+ * Bind a buffer with IRRuntimeVertexBuffers at index 0 for the object stage,
+ * You need to manually flag residency for all referenced vertex buffers and for the index buffer.
+ * @param enc the Metal 4 render command encoder
+ * @param argTable the argument table - available for the object and mesh stages - to bind a scratch buffer on the encoder
+ * @param scratchBuffer the buffer to encode metal shader converter semantic information
+ * @param scratchBufferOffset the offset into the scratch buffer
+ * @param primitiveTopology the primitive topology
+ * @param indexType the data type of the indices.
+ * @param indexBuffer a buffer that contains indices to the vertices.
+ * @param tessellationPipelineConfig pipeline configuration from the tessellation shader
+ * @param instanceCount the number of instances to draw
+ * @param indexCountPerInstance the index count
+ * @param baseInstance the first instance to draw.
+ * @param baseVertex the first vertex to draw.
+ * @param startIndex the first index to draw.
+ */
+void IRRuntime4DrawIndexedPatchesTessellationEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                       buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                       IRRuntimePrimitiveType primitiveTopology,
+                                                       indextype_t indexType,
+                                                       uint64_t indexBuffer,
+                                                       IRRuntimeTessellationPipelineConfig tessellationPipelineConfig,
+                                                       uint32_t instanceCount,
+                                                       uint32_t indexCountPerInstance,
+                                                       uint32_t baseInstance,
+                                                       int32_t  baseVertex,
+                                                       uint32_t startIndex);
+
+    
+#endif
+#ifdef IR_PRIVATE_IMPLEMENTATION
+
+#ifndef IR_RUNTIME_METALCPP
+#if !__has_feature(objc_arc)
+#error The implementation of this file needs to be generated in a module with ARC enabled when in Objective-C mode.
+#endif
+#endif
+
 
 const uint64_t kIRArgumentBufferBindPoint                   = 2;
 const uint64_t kIRArgumentBufferHullDomainBindPoint         = 3;
@@ -546,15 +756,6 @@ const uint64_t kIRBufSizeMask       = 0xffffffff;
 const uint64_t kIRTexViewOffset     = 32;
 const uint64_t kIRTexViewMask       = 0xff;
 const uint64_t kIRTypedBufferOffset = 63;
-
-
-#ifdef IR_PRIVATE_IMPLEMENTATION
-
-#ifndef IR_RUNTIME_METALCPP
-#if !__has_feature(objc_arc)
-#error The implementation of this file needs to be generated in a module with ARC enabled when in Objective-C mode.
-#endif
-#endif
 
 
 IR_INLINE
@@ -804,6 +1005,7 @@ static uint32_t IRRuntimePrimitiveTypeVertexCount(IRRuntimePrimitiveType primiti
         case IRRuntimePrimitiveTypeLineWithAdj:     return 4; break;
         case IRRuntimePrimitiveTypeTriangleStrip:   return 3; break;
         case IRRuntimePrimitiveTypeLineStrip:       return 2; break;
+        case IRRuntimePrimitiveTypeLineStripWithAdj:return 4; break;
         default: return 0;
     }
     return 0;
@@ -821,6 +1023,7 @@ static uint32_t IRRuntimePrimitiveTypeVertexOverlap(IRRuntimePrimitiveType primi
         case IRRuntimePrimitiveTypeLineWithAdj:     return 0; break;
         case IRRuntimePrimitiveTypeTriangleStrip:   return 2; break;
         case IRRuntimePrimitiveTypeLineStrip:       return 1; break;
+        case IRRuntimePrimitiveTypeLineStripWithAdj:return 3; break;
         default: return 0;
     }
     return 0;
@@ -869,10 +1072,10 @@ static mtlsize_t IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulat
                                                                                   uint32_t instanceCount)
 {
     uint32_t nonProvokingVertices = 0;
-    if (primitiveType == (uint32_t)IRRuntimePrimitiveTypeLineStrip || primitiveType == (uint32_t)IRRuntimePrimitiveTypeTriangleStrip)
+    if (primitiveType == (uint32_t)IRRuntimePrimitiveTypeLineStrip || primitiveType == (uint32_t)IRRuntimePrimitiveTypeTriangleStrip || primitiveType == (uint32_t)IRRuntimePrimitiveTypeLineStripWithAdj)
     {
         // For strips, last k vertices aren't able to spawn a full primitive.
-        nonProvokingVertices = (primitiveType == (uint32_t)IRRuntimePrimitiveTypeTriangleStrip) ? 2 : 1;
+        nonProvokingVertices = IRRuntimePrimitiveTypeVertexOverlap(primitiveType);
     }
     
     mtlsize_t siz;
@@ -1115,14 +1318,7 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
         .startInstanceLocation = baseInstance
     };
     
-    uint32_t threadgroupMem = 16;
-    uint32_t prefixSumMem = 16;
-    
-    threadgroupMem = tessellationPipelineConfig.vsOutputSizeInBytes *
-                        tessellationPipelineConfig.hsInputControlPointCount *
-                                    tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup;
-    
-    prefixSumMem = 15360 - (32 * 4);
+    uint32_t threadgroupMem = 15360;
     
 #ifdef IR_RUNTIME_METALCPP
     drawInfo.indexBuffer = indexBuffer->gpuAddress();
@@ -1133,7 +1329,6 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
     enc->setMeshBytes(&drawParams,              sizeof(IRRuntimeDrawParams),       kIRArgumentBufferDrawArgumentsBindPoint);
     
     enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
-    enc->setObjectThreadgroupMemoryLength(prefixSumMem, 1);
 
     enc->drawMeshThreadgroups(objectThreadgroupCount,
                               MTL::Size::Make(objectThreadgroupSize, 1, 1),
@@ -1148,7 +1343,6 @@ void IRRuntimeDrawIndexedPatchesTessellationEmulation(renderencoder_t enc,
     [enc setMeshBytes:&drawParams                length:sizeof(IRRuntimeDrawParams)       atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
 
     [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
-    [enc setObjectThreadgroupMemoryLength:prefixSumMem atIndex:1];
     
     [enc drawMeshThreadgroups:objectThreadgroupCount
   threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
@@ -1199,14 +1393,7 @@ void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
         
     };
     
-    uint32_t threadgroupMem = 16;
-    uint32_t prefixSumMem = 16;
-    
-    threadgroupMem = tessellationPipelineConfig.vsOutputSizeInBytes *
-                        tessellationPipelineConfig.hsInputControlPointCount *
-                                    tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup;
-    
-    prefixSumMem = 15360 - (32 * 4);
+    uint32_t threadgroupMem = 15360;
     
 #ifdef IR_RUNTIME_METALCPP
     
@@ -1216,7 +1403,6 @@ void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
     enc->setMeshBytes(&drawParams,              sizeof(IRRuntimeDrawParams),       kIRArgumentBufferDrawArgumentsBindPoint);
     
     enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
-    enc->setObjectThreadgroupMemoryLength(prefixSumMem, 1);
 
     enc->drawMeshThreadgroups(objectThreadgroupCount,
                               MTL::Size::Make(objectThreadgroupSize, 1, 1),
@@ -1229,7 +1415,6 @@ void IRRuntimeDrawPatchesTessellationEmulation(renderencoder_t enc,
     [enc setMeshBytes:&drawParams                length:sizeof(IRRuntimeDrawParams)       atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
 
     [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
-    [enc setObjectThreadgroupMemoryLength:prefixSumMem atIndex:1];
     
     [enc drawMeshThreadgroups:objectThreadgroupCount
   threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
@@ -1435,6 +1620,16 @@ exit_vertex_function_error:
     return pRenderPipelineState;
     
 #endif // IR_RUNTIME_METALCPP
+}
+
+IR_INLINE
+void IRRuntimeSetFunctionConstantValue(functionconstantvalues_t values, uint16_t index, IRRuntimeFunctionConstantValue *value)
+{
+#ifdef IR_RUNTIME_METALCPP
+    values->setConstantValue(value, MTL::DataTypeUInt4, index);
+#else
+    [values setConstantValue:value type:MTLDataTypeUInt4 atIndex:index];
+#endif
 }
 
 IR_INLINE
@@ -1836,6 +2031,261 @@ exit_stagein_function_error:
 #endif // IR_RUNTIME_METALCPP
 }
 
+#ifdef IR_RUNTIME_METAL4
+    IR_INLINE
+    uint64_t IRRuntime4DrawGetScratchBufferSize(void)
+    {
+        return sizeof(IRRuntimeDrawParams) + sizeof(IRRuntimeDrawInfo);
+    }
+    
+    IR_INLINE
+    static void IRRuntime4BindScratchBuffer(const IRRuntimeDrawParams *srcDrawParams, const IRRuntimeDrawInfo *srcDrawInfo, buffer_t scratchBuffer, uint64_t scratchBufferOffset, mtl4argumenttable_t argTable)
+    {
+        uint64_t drawParamsOffset = scratchBufferOffset;
+        uint64_t drawInfoOffset = drawParamsOffset + sizeof(IRRuntimeDrawParams);
+     
+#ifdef IR_RUNTIME_METALCPP
+        IRRuntimeDrawParams *dstDrawParams = (IRRuntimeDrawParams *)((uint8_t *)scratchBuffer->contents() + drawParamsOffset);
+        memcpy(dstDrawParams, srcDrawParams, sizeof(IRRuntimeDrawParams));
+        
+        IRRuntimeDrawInfo *dstDrawInfo = (IRRuntimeDrawInfo *)((uint8_t *)scratchBuffer->contents() + drawInfoOffset);
+        memcpy(dstDrawInfo, srcDrawInfo, sizeof(IRRuntimeDrawInfo));
+        
+        argTable->setAddress(scratchBuffer->gpuAddress() + drawParamsOffset, kIRArgumentBufferDrawArgumentsBindPoint);
+        argTable->setAddress(scratchBuffer->gpuAddress() + drawInfoOffset, kIRArgumentBufferUniformsBindPoint);
+#else
+        IRRuntimeDrawParams *dstDrawParams = (IRRuntimeDrawParams *)((uint8_t *)scratchBuffer.contents + drawParamsOffset);
+        memcpy(dstDrawParams, srcDrawParams, sizeof(IRRuntimeDrawParams));
+        
+        IRRuntimeDrawInfo *dstDrawInfo = (IRRuntimeDrawInfo *)((uint8_t *)scratchBuffer.contents + drawInfoOffset);
+        memcpy(dstDrawInfo, srcDrawInfo, sizeof(IRRuntimeDrawInfo));
+        
+        [argTable setAddress:scratchBuffer.gpuAddress + drawParamsOffset atIndex:kIRArgumentBufferDrawArgumentsBindPoint];
+        [argTable setAddress:scratchBuffer.gpuAddress + drawInfoOffset atIndex:kIRArgumentBufferUniformsBindPoint];
+#endif
+    }
+    
+    IR_INLINE
+    void IRRuntime4DrawPrimitivesGeometryEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                  buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                  IRRuntimePrimitiveType primitiveType,
+                                                  IRRuntimeGeometryPipelineConfig geometryPipelineConfig,
+                                                  uint32_t instanceCount,
+                                                  uint32_t vertexCountPerInstance,
+                                                  uint32_t baseVertex,
+                                                  uint32_t baseInstance)
+    {
+        IRRuntimeDrawInfo drawInfo = IRRuntimeCalculateDrawInfoForGSEmulation(primitiveType,
+                                                                              (indextype_t)-1,
+                                                                              geometryPipelineConfig.gsVertexSizeInBytes,
+                                                                              geometryPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                              instanceCount);
+        drawInfo.indexType = kIRNonIndexedDraw;
+        
+        mtlsize_t objectThreadgroupCount = IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulation(vertexCountPerInstance,
+                                                                                                              drawInfo.objectThreadgroupVertexStride,
+                                                                                                              primitiveType,
+                                                                                                              instanceCount);
+        
+        uint32_t objectThreadgroupSize,meshThreadgroupSize;
+        IRRuntimeCalculateThreadgroupSizeForGeometry(primitiveType,
+                                                     geometryPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                     drawInfo.objectThreadgroupVertexStride,
+                                                     &objectThreadgroupSize,
+                                                     &meshThreadgroupSize);
+        
+        IRRuntimeDrawParams drawParams;
+        drawParams.draw = (IRRuntimeDrawArgument){
+            .vertexCountPerInstance = vertexCountPerInstance,
+            .instanceCount = instanceCount,
+            .startVertexLocation = baseVertex,
+            .startInstanceLocation = baseInstance
+        };
+        
+        IRRuntime4BindScratchBuffer(&drawParams, &drawInfo, scratchBuffer, scratchBufferOffset, argTable);
+#ifdef IR_RUNTIME_METALCPP
+        enc->drawMeshThreadgroups(objectThreadgroupCount, MTL::Size::Make(objectThreadgroupSize, 1, 1), MTL::Size::Make(meshThreadgroupSize, 1, 1));
+#else
+        [enc drawMeshThreadgroups:objectThreadgroupCount
+      threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
+        threadsPerMeshThreadgroup:MTLSizeMake(meshThreadgroupSize, 1, 1)];
+#endif
+    }
+    
+    IR_INLINE
+    void IRRuntime4DrawIndexedPrimitivesGeometryEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                          buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                          IRRuntimePrimitiveType primitiveType,
+                                                          indextype_t indexType,
+                                                          uint64_t indexBuffer,
+                                                          IRRuntimeGeometryPipelineConfig geometryPipelineConfig,
+                                                          uint32_t instanceCount,
+                                                          uint32_t indexCountPerInstance,
+                                                          uint32_t startIndex,
+                                                          int baseVertex,
+                                                          uint32_t baseInstance)
+    {
+        IRRuntimeDrawInfo drawInfo = IRRuntimeCalculateDrawInfoForGSEmulation(primitiveType,
+                                                                              indexType,
+                                                                              geometryPipelineConfig.gsVertexSizeInBytes,
+                                                                              geometryPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                              instanceCount);
+        drawInfo.indexBuffer = indexBuffer;
+        
+        mtlsize_t objectThreadgroupCount = IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulation(indexCountPerInstance,
+                                                                                                              drawInfo.objectThreadgroupVertexStride,
+                                                                                                              primitiveType,
+                                                                                                              instanceCount);
+        
+        uint32_t objectThreadgroupSize,meshThreadgroupSize;
+        IRRuntimeCalculateThreadgroupSizeForGeometry(primitiveType,
+                                                     geometryPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                     drawInfo.objectThreadgroupVertexStride,
+                                                     &objectThreadgroupSize,
+                                                     &meshThreadgroupSize);
+        
+        IRRuntimeDrawParams drawParams;
+        drawParams.drawIndexed = (IRRuntimeDrawIndexedArgument){
+            .indexCountPerInstance = indexCountPerInstance,
+            .instanceCount = instanceCount,
+            .startIndexLocation = startIndex,
+            .baseVertexLocation = baseVertex,
+            .startInstanceLocation = baseInstance
+        };
+        
+        IRRuntime4BindScratchBuffer(&drawParams, &drawInfo, scratchBuffer, scratchBufferOffset, argTable);
+        
+#ifdef IR_RUNTIME_METALCPP
+        enc->drawMeshThreadgroups(objectThreadgroupCount, MTL::Size::Make(objectThreadgroupSize, 1, 1), MTL::Size::Make(meshThreadgroupSize, 1, 1));
+#else
+        [enc drawMeshThreadgroups:objectThreadgroupCount
+      threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
+        threadsPerMeshThreadgroup:MTLSizeMake(meshThreadgroupSize, 1, 1)];
+#endif
+    }
+    
+    IR_INLINE
+    void IRRuntime4DrawIndexedPatchesTessellationEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                           buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                           IRRuntimePrimitiveType primitiveTopology,
+                                                           indextype_t indexType,
+                                                           uint64_t indexBuffer,
+                                                           IRRuntimeTessellationPipelineConfig tessellationPipelineConfig,
+                                                           uint32_t instanceCount,
+                                                           uint32_t indexCountPerInstance,
+                                                           uint32_t baseInstance,
+                                                           int32_t  baseVertex,
+                                                           uint32_t startIndex)
+    {
+        IRRuntimeDrawInfo drawInfo = IRRuntimeCalculateDrawInfoForGSTSEmulation(
+                                                                                /* primitiveType */                          primitiveTopology,
+                                                                                /* indexType */                              indexType,
+                                                                                /* tessellatorOutputPrimitive */             tessellationPipelineConfig.outputPrimitiveType,
+                                                                                /* gsMaxInputPrimitivesPerMeshThreadgroup */ tessellationPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                                /* hsPatchesPerObjectThreadgroup */          tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup,
+                                                                                /* hsInputControlPointsPerPatch */           tessellationPipelineConfig.hsInputControlPointCount,
+                                                                                /* hsObjectThreadsPerPatch */                tessellationPipelineConfig.hsMaxObjectThreadsPerThreadgroup,
+                                                                                /* gsInstanceCount */                        tessellationPipelineConfig.gsInstanceCount);
+        drawInfo.indexBuffer = indexBuffer;
+        
+        mtlsize_t objectThreadgroupCount = IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulation(indexCountPerInstance,
+                                                                                                              drawInfo.objectThreadgroupVertexStride,
+                                                                                                              primitiveTopology,
+                                                                                                              instanceCount);
+        
+        uint32_t objectThreadgroupSize, meshThreadgroupSize;
+        IRRuntimeCalculateThreadgroupSizeForTessellationAndGeometry(tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup,
+                                                                    tessellationPipelineConfig.hsMaxObjectThreadsPerThreadgroup,
+                                                                    tessellationPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                    &objectThreadgroupSize,
+                                                                    &meshThreadgroupSize);
+        
+        
+        IRRuntimeDrawParams drawParams;
+        drawParams.drawIndexed = (IRRuntimeDrawIndexedArgument){
+            .indexCountPerInstance = indexCountPerInstance,
+            .instanceCount = instanceCount,
+            .startIndexLocation = startIndex,
+            .baseVertexLocation = baseVertex,
+            .startInstanceLocation = baseInstance
+        };
+        
+        IRRuntime4BindScratchBuffer(&drawParams, &drawInfo, scratchBuffer, scratchBufferOffset, argTable);
+        
+        uint32_t threadgroupMem = 15360;
+#ifdef IR_RUNTIME_METALCPP
+        enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
+        enc->drawMeshThreadgroups(objectThreadgroupCount,
+                                  MTL::Size::Make(objectThreadgroupSize, 1, 1),
+                                  MTL::Size::Make(meshThreadgroupSize, 1, 1));
+#else
+        [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
+        [enc drawMeshThreadgroups:objectThreadgroupCount
+      threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
+        threadsPerMeshThreadgroup:MTLSizeMake(meshThreadgroupSize, 1, 1)];
+#endif
+    }
+    
+    IR_INLINE
+    void IRRuntime4DrawPatchesTessellationEmulation(mtl4renderencoder_t enc, mtl4argumenttable_t argTable,
+                                                    buffer_t scratchBuffer, uint64_t scratchBufferOffset,
+                                                    IRRuntimePrimitiveType primitiveTopology,
+                                                    IRRuntimeTessellationPipelineConfig tessellationPipelineConfig,
+                                                    uint32_t instanceCount,
+                                                    uint32_t vertexCountPerInstance,
+                                                    uint32_t baseInstance,
+                                                    uint32_t baseVertex)
+    {
+        IRRuntimeDrawInfo drawInfo = IRRuntimeCalculateDrawInfoForGSTSEmulation(
+                                                                                /* primitiveType */                          primitiveTopology,
+                                                                                /* indexType */                              (indextype_t)-1,
+                                                                                /* tessellatorOutputPrimitive */             tessellationPipelineConfig.outputPrimitiveType,
+                                                                                /* gsMaxInputPrimitivesPerMeshThreadgroup */ tessellationPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                                /* hsPatchesPerObjectThreadgroup */          tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup,
+                                                                                /* hsInputControlPointsPerPatch */           tessellationPipelineConfig.hsInputControlPointCount,
+                                                                                /* hsObjectThreadsPerPatch */                tessellationPipelineConfig.hsMaxObjectThreadsPerThreadgroup,
+                                                                                /* gsInstanceCount */                        tessellationPipelineConfig.gsInstanceCount);
+        drawInfo.indexType = kIRNonIndexedDraw;
+        
+        
+        mtlsize_t objectThreadgroupCount = IRRuntimeCalculateObjectTgCountForTessellationAndGeometryEmulation(vertexCountPerInstance,
+                                                                                                              drawInfo.objectThreadgroupVertexStride,
+                                                                                                              primitiveTopology,
+                                                                                                              instanceCount);
+        
+        uint32_t objectThreadgroupSize, meshThreadgroupSize;
+        IRRuntimeCalculateThreadgroupSizeForTessellationAndGeometry(tessellationPipelineConfig.hsMaxPatchesPerObjectThreadgroup,
+                                                                    tessellationPipelineConfig.hsMaxObjectThreadsPerThreadgroup,
+                                                                    tessellationPipelineConfig.gsMaxInputPrimitivesPerMeshThreadgroup,
+                                                                    &objectThreadgroupSize,
+                                                                    &meshThreadgroupSize);
+        
+        
+        IRRuntimeDrawParams drawParams;
+        drawParams.draw = (IRRuntimeDrawArgument){
+            .vertexCountPerInstance = vertexCountPerInstance,
+            .instanceCount = instanceCount,
+            .startVertexLocation = baseVertex,
+            .startInstanceLocation = baseInstance
+            
+        };
+        
+        IRRuntime4BindScratchBuffer(&drawParams, &drawInfo, scratchBuffer, scratchBufferOffset, argTable);
+        
+        uint32_t threadgroupMem = 15360;
+#ifdef IR_RUNTIME_METALCPP
+        enc->setObjectThreadgroupMemoryLength(threadgroupMem, 0);
+        enc->drawMeshThreadgroups(objectThreadgroupCount,
+                                  MTL::Size::Make(objectThreadgroupSize, 1, 1),
+                                  MTL::Size::Make(meshThreadgroupSize, 1, 1));
+#else
+        [enc setObjectThreadgroupMemoryLength:threadgroupMem atIndex:0];
+        [enc drawMeshThreadgroups:objectThreadgroupCount
+      threadsPerObjectThreadgroup:MTLSizeMake(objectThreadgroupSize, 1, 1)
+        threadsPerMeshThreadgroup:MTLSizeMake(meshThreadgroupSize, 1, 1)];
+#endif
+    }
+#endif
 
 #endif // IR_PRIVATE_IMPLEMENTATION
 

@@ -37,6 +37,9 @@ pub struct BufferView<'a> {
 impl ffi::IRDescriptorTableEntry {
     /// Encode a buffer descriptor.
     ///
+    /// When creating the `metadata` argument via [`Self::metadata()`], note that this does not
+    /// encode [`BufferView::buffer_size`], which must be added to the `gpu_address` argument manually.
+    ///
     /// This function is a port of the `IRDescriptorTableSetBuffer` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
     // TODO: This function seems to have no reason to exist, in favour of `buffer_view()` the
@@ -55,6 +58,8 @@ impl ffi::IRDescriptorTableEntry {
     }
 
     /// Encode a buffer view descriptor.
+    ///
+    /// Use this function to encode a buffer that may also include a reference as a texture from a shader.
     ///
     /// This function is a port of the `IRDescriptorTableSetBufferView` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
@@ -111,6 +116,10 @@ impl ffi::IRDescriptorTableEntry {
     }
 
     /// Get the metadata value for a buffer view.
+    ///
+    /// Be warned that this does **not** encode [`BufferView::buffer_offset`].  If you
+    /// are manually passing this metadata down into [`Self::buffer()`] (rather than using
+    /// [`Self::buffer_view()`]), the offset must be added to the `gpu_address` argument.
     ///
     /// This function is a port of the `IRDescriptorTableGetBufferMetadata` function in the `metal_irconverter_runtime.h` header.
     /// See <https://developer.apple.com/metal/shader-converter/> for more info.
