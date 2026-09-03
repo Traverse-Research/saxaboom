@@ -199,6 +199,8 @@ typedef enum IRCompatibilityFlags
     IRCompatibilityFlagTexWriteRoundingRTZ               = (1 << 6),
     IRCompatibilityFlagSuppress2DComputeDerivativeErrors = (1 << 7),
     IRCompatibilityFlagForceTextureArray                 = (1 << 8),
+    IRCompatibilityFlagDisableNanInfOptimization         = (1 << 9),
+    IRCompatibilityFlagEnsureTGMemoryCoherency           = (1 << 10),
 } IRCompatibilityFlags;
 
 typedef struct IRStaticSamplerDescriptor
@@ -370,7 +372,8 @@ enum IRErrorCode
     IRErrorCodeInvalidRaytracingUserAttributeSize,
     IRErrorCodeIncorrectHitgroupType,
     IRErrorCodeFP64Usage,
-    IRErrorCodeUnknown
+    
+    IRErrorCodeUnknown = 0x7FFFFFFF
 };
 
 /**
