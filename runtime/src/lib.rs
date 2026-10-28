@@ -20,7 +20,8 @@ use std::ptr::NonNull;
 
 use objc2::runtime::ProtocolObject;
 use objc2_metal::{
-    MTLBuffer, MTLIndexType, MTLPrimitiveType, MTLRenderCommandEncoder, MTLSamplerState, MTLTexture,
+    MTL4ArgumentTable, MTL4RenderCommandEncoder, MTLBuffer, MTLIndexType, MTLPrimitiveType,
+    MTLRenderCommandEncoder, MTLSamplerState, MTLTexture,
 };
 
 /// Rust version of `IRBufferView` using [`objc2_metal`] types.
@@ -139,6 +140,51 @@ impl ffi::IRDescriptorTableEntry {
     }
 }
 
+/// Minimum size of the scratch buffer region that the `mtl4_*` draw functions write
+/// Metal Shader Converter semantic information into.
+#[doc(alias = "IRRuntime4DrawGetScratchBufferSize")]
+pub const fn mtl4_draw_scratch_buffer_size() -> usize {
+    size_of::<ffi::IRRuntimeDrawParams>() + size_of::<ffi::IRRuntimeDrawInfo>()
+}
+
+/// Copies `draw_params` and `draw_info` into `scratch_buffer` at `scratch_buffer_offset` and binds
+/// them on `argument_table`, the Metal 4 equivalent of `setVertexBytes()`.
+#[doc(alias = "IRRuntime4BindScratchBuffer")]
+fn mtl4_bind_scratch_buffer(
+    draw_params: &ffi::IRRuntimeDrawParams,
+    draw_info: &ffi::IRRuntimeDrawInfo,
+    scratch_buffer: &ProtocolObject<dyn MTLBuffer>,
+    scratch_buffer_offset: usize,
+    argument_table: &ProtocolObject<dyn MTL4ArgumentTable>,
+) {
+    let draw_params_offset = scratch_buffer_offset;
+    let draw_info_offset = draw_params_offset + size_of_val(draw_params);
+    assert!(
+        scratch_buffer_offset + mtl4_draw_scratch_buffer_size() <= scratch_buffer.length(),
+        "Scratch buffer region is out of bounds"
+    );
+    let contents = scratch_buffer.contents().as_ptr().cast::<u8>();
+    let gpu_address = scratch_buffer.gpuAddress();
+    unsafe {
+        contents
+            .add(draw_params_offset)
+            .cast::<ffi::IRRuntimeDrawParams>()
+            .write_unaligned(*draw_params);
+        contents
+            .add(draw_info_offset)
+            .cast::<ffi::IRRuntimeDrawInfo>()
+            .write_unaligned(*draw_info);
+        argument_table.setAddress_atIndex(
+            gpu_address + draw_params_offset as u64,
+            ffi::kIRArgumentBufferDrawArgumentsBindPoint as usize,
+        );
+        argument_table.setAddress_atIndex(
+            gpu_address + draw_info_offset as u64,
+            ffi::kIRArgumentBufferUniformsBindPoint as usize,
+        );
+    }
+}
+
 #[doc(alias = "IRRuntimeDrawPrimitives")]
 pub fn draw_primitives(
     encoder: &ProtocolObject<dyn MTLRenderCommandEncoder>,
@@ -170,6 +216,58 @@ pub fn draw_primitives(
             size_of_val(&non_indexed_draw),
             ffi::kIRArgumentBufferUniformsBindPoint as usize,
         );
+        encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
+            primitive_type,
+            vertex_start,
+            vertex_count,
+            instance_count,
+            base_instance,
+        );
+    }
+}
+
+/// Metal 4 equivalent of [`draw_primitives()`], which Metal Shader Converter itself does not provide.
+///
+/// Instead of `setVertexBytes()`, the draw arguments are written into `scratch_buffer` at
+/// `scratch_buffer_offset` (which must have [`mtl4_draw_scratch_buffer_size()`] bytes available)
+/// and bound on `argument_table`, which must be bound to the vertex stage of `encoder`.  The
+/// caller must keep this region alive and unmodified until the GPU has finished executing
+/// `encoder`, and `scratch_buffer` must be CPU-accessible and resident.
+#[doc(alias = "IRRuntimeDrawPrimitives")]
+#[expect(clippy::too_many_arguments)]
+pub fn mtl4_draw_primitives(
+    encoder: &ProtocolObject<dyn MTL4RenderCommandEncoder>,
+    argument_table: &ProtocolObject<dyn MTL4ArgumentTable>,
+    scratch_buffer: &ProtocolObject<dyn MTLBuffer>,
+    scratch_buffer_offset: usize,
+    primitive_type: MTLPrimitiveType,
+    vertex_start: usize,
+    vertex_count: usize,
+    instance_count: usize,
+    base_instance: usize,
+) {
+    let dp = ffi::IRRuntimeDrawParams {
+        u_1: ffi::IRRuntimeDrawParams_u {
+            draw: ffi::IRRuntimeDrawArgument {
+                vertexCountPerInstance: vertex_count as u32,
+                instanceCount: instance_count as u32,
+                startVertexLocation: vertex_start as u32,
+                startInstanceLocation: base_instance as u32,
+            },
+        },
+    };
+    let draw_info = ffi::IRRuntimeDrawInfo {
+        indexType: ffi::kIRNonIndexedDraw,
+        ..Default::default()
+    };
+    mtl4_bind_scratch_buffer(
+        &dp,
+        &draw_info,
+        scratch_buffer,
+        scratch_buffer_offset,
+        argument_table,
+    );
+    unsafe {
         encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
             primitive_type,
             vertex_start,
@@ -227,6 +325,66 @@ pub fn draw_indexed_primitives(
             index_type,
             index_buffer,
             index_buffer_offset,
+            instance_count,
+            base_vertex,
+            base_instance,
+        );
+    }
+}
+
+/// Metal 4 equivalent of [`draw_indexed_primitives()`], which Metal Shader Converter itself does not provide.
+///
+/// Instead of `setVertexBytes()`, the draw arguments are written into `scratch_buffer` at
+/// `scratch_buffer_offset` (which must have [`mtl4_draw_scratch_buffer_size()`] bytes available)
+/// and bound on `argument_table`, which must be bound to the vertex stage of `encoder`.  The
+/// caller must keep this region alive and unmodified until the GPU has finished executing
+/// `encoder`, and `scratch_buffer` must be CPU-accessible and resident.
+#[doc(alias = "IRRuntimeDrawIndexedPrimitives")]
+#[expect(clippy::too_many_arguments)]
+pub fn mtl4_draw_indexed_primitives(
+    encoder: &ProtocolObject<dyn MTL4RenderCommandEncoder>,
+    argument_table: &ProtocolObject<dyn MTL4ArgumentTable>,
+    scratch_buffer: &ProtocolObject<dyn MTLBuffer>,
+    scratch_buffer_offset: usize,
+    primitive_type: MTLPrimitiveType,
+    index_count: usize,
+    index_type: MTLIndexType,
+    index_buffer: &ProtocolObject<dyn MTLBuffer>,
+    index_buffer_offset: usize,
+    instance_count: usize,
+    base_vertex: isize,
+    base_instance: usize,
+) {
+    let dp = ffi::IRRuntimeDrawParams {
+        u_1: ffi::IRRuntimeDrawParams_u {
+            drawIndexed: ffi::IRRuntimeDrawIndexedArgument {
+                indexCountPerInstance: index_count as u32,
+                instanceCount: instance_count as u32,
+                // Matches IRRuntimeDrawIndexedPrimitives() and draw_indexed_primitives()
+                startIndexLocation: index_buffer_offset as u32,
+                baseVertexLocation: base_vertex as i32,
+                startInstanceLocation: base_instance as u32,
+            },
+        },
+    };
+    let draw_info = ffi::IRRuntimeDrawInfo {
+        indexType: metal_index_to_ir_index(index_type),
+        ..Default::default()
+    };
+    mtl4_bind_scratch_buffer(
+        &dp,
+        &draw_info,
+        scratch_buffer,
+        scratch_buffer_offset,
+        argument_table,
+    );
+    unsafe {
+        encoder.drawIndexedPrimitives_indexCount_indexType_indexBuffer_indexBufferLength_instanceCount_baseVertex_baseInstance(
+            primitive_type,
+            index_count,
+            index_type,
+            index_buffer.gpuAddress() + index_buffer_offset as u64,
+            index_buffer.length() - index_buffer_offset,
             instance_count,
             base_vertex,
             base_instance,
